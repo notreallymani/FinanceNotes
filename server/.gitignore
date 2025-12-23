@@ -1,0 +1,45 @@
+# Environment variables
+.env
+.env.dev
+.env.production
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+package-lock.json
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary uploads
+uploads/
+*.tmp
+*.temp
+
+# Google Cloud Service Account Keys (keep example, ignore actual keys)
+# Keep: financenotes-11ff0-05155bafecde.json (if it's the actual key)
+# Add production keys to .gitignore explicitly
+*-service-account-key.json
+*-key.json
+!*-example.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build files
+dist/
+build/
+

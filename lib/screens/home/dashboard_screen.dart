@@ -1,0 +1,395 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/profile_provider.dart';
+import '../../widgets/primary_button.dart';
+
+class DashboardScreen extends StatelessWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Consumer<AuthProvider>(
+          builder: (context, authProvider, _) {
+            return Text(
+              'Finance Notes',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+            );
+          },
+        ),
+        elevation: 0,
+      ),
+      drawer: _buildDrawer(context),
+      body: GridView.builder(
+        // Optimize: Use builder for better performance
+        padding: const EdgeInsets.all(16),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: 1.0, // Changed from 1.1 to 1.0 for more vertical space
+        ),
+        itemCount: 5,
+        itemBuilder: (context, index) {
+          final tiles = [
+            {
+              'title': 'Send Payment',
+              'icon': Icons.send,
+              'color': Colors.blue,
+              'route': '/sendPayment',
+            },
+            {
+              'title': 'Close Payment',
+              'icon': Icons.close,
+              'color': Colors.orange,
+              'route': '/closePayment',
+            },
+            {
+              'title': 'Search Transactions',
+              'icon': Icons.search,
+              'color': Colors.green,
+              'route': '/search',
+            },
+            {
+              'title': 'Payment History',
+              'icon': Icons.history,
+              'color': Colors.purple,
+              'route': '/paymentHistory',
+            },
+            {
+              'title': 'Chats',
+              'icon': Icons.chat_bubble_outline,
+              'color': Colors.teal,
+              'route': '/chats',
+            },
+          ];
+          final tile = tiles[index];
+          return _buildDashboardTile(
+            context,
+            title: tile['title'] as String,
+            icon: tile['icon'] as IconData,
+            color: tile['color'] as Color,
+            onTap: () {
+              // Optimize: Use Hero animations for smooth transitions
+              Navigator.pushNamed(context, tile['route'] as String);
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildDrawer(BuildContext context) {
+    return Drawer(
+      child: SafeArea(
+        child: Column(
+          children: [
+            // User Header Section
+            Consumer<AuthProvider>(
+              builder: (context, authProvider, _) {
+                final user = authProvider.user;
+                return Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).primaryColor,
+                    gradient: LinearGradient(
+                      colors: [
+                        Theme.of(context).primaryColor,
+                        Theme.of(context).primaryColor.withOpacity(0.8),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(
+                        radius: 35,
+                        backgroundColor: Colors.white,
+                        child: Text(
+                          user?.name.substring(0, 1).toUpperCase() ?? 'U',
+                          style: GoogleFonts.inter(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        user?.name ?? 'User',
+                        style: GoogleFonts.inter(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        user?.phone ?? user?.email ?? '',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: Colors.white70,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            
+            // Menu Items
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.person,
+                    title: 'Profile',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/profile');
+                    },
+                  ),
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.history,
+                    title: 'Payment History',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/paymentHistory');
+                    },
+                  ),
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.search,
+                    title: 'Search Transactions',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/search');
+                    },
+                  ),
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.send,
+                    title: 'Send Payment',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/sendPayment');
+                    },
+                  ),
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.close,
+                    title: 'Close Payment',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/closePayment');
+                    },
+                  ),
+                  const Divider(),
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.settings,
+                    title: 'Settings',
+                    onTap: () {
+                      Navigator.pop(context);
+                      // Navigate to settings
+                      // Navigator.pushNamed(context, '/settings');
+                    },
+                  ),
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.help_outline,
+                    title: 'Help & Support',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/help');
+                    },
+                  ),
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.info_outline,
+                    title: 'About',
+                    onTap: () {
+                      Navigator.pop(context);
+                      // Show about dialog
+                      _showAboutDialog(context);
+                    },
+                  ),
+                ],
+              ),
+            ),
+            
+            // Logout Button
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: Consumer<AuthProvider>(
+                builder: (context, authProvider, _) {
+                  return PrimaryButton(
+                    text: 'Logout',
+                    onPressed: () async {
+                      Navigator.pop(context);
+                      await authProvider.logout();
+                      if (context.mounted) {
+                        Navigator.pushReplacementNamed(context, '/login');
+                      }
+                    },
+                    isLoading: authProvider.isLoading,
+                    backgroundColor: Colors.red,
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(
+        icon,
+        color: Colors.grey[700],
+      ),
+      title: Text(
+        title,
+        style: GoogleFonts.inter(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+          color: Colors.grey[800],
+        ),
+      ),
+      onTap: onTap,
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 20,
+        vertical: 4,
+      ),
+    );
+  }
+
+  Widget _buildDashboardTile(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Hero(
+      tag: 'tile_$title',
+      child: Material(
+        color: Colors.transparent,
+        child: Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(16),
+            // Optimize: Add splash effect for better UX
+            splashColor: color.withOpacity(0.1),
+            highlightColor: color.withOpacity(0.05),
+            child: Container(
+              padding: const EdgeInsets.all(16), // Reduced from 20 to 16
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    color.withOpacity(0.1),
+                    color.withOpacity(0.05),
+                  ],
+                ),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min, // Added to prevent overflow
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10), // Reduced from 12 to 10
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      icon,
+                      size: 36, // Reduced from 40 to 36
+                      color: color,
+                    ),
+                  ),
+                  const SizedBox(height: 12), // Reduced from 16 to 12
+                  Flexible( // Added Flexible to prevent overflow
+                    child: Text(
+                      title,
+                      style: GoogleFonts.inter(
+                        fontSize: 14, // Reduced from 15 to 14
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[800],
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAboutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'About Finance Notes',
+          style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Version 1.0.0',
+              style: GoogleFonts.inter(),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'A simple and secure way to manage your payments and transactions.',
+              style: GoogleFonts.inter(color: Colors.grey[600]),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Close',
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).primaryColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
