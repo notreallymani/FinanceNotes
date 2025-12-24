@@ -1,10 +1,18 @@
 import 'package:flutter/foundation.dart';
 
 class Env {
-  static const String env = String.fromEnvironment(
-    'ENV',
-    defaultValue: kReleaseMode ? 'prod' : 'dev',
-  );
+  // Environment detection: Use ENV dart-define when running with --flavor prod
+  // Command: flutter run --flavor prod --dart-define=ENV=prod -d <device>
+  static const String _envVar = String.fromEnvironment('ENV', defaultValue: '');
+  
+  static String get env {
+    // Priority: ENV dart-define > kReleaseMode
+    if (_envVar.isNotEmpty) return _envVar;
+    // In release mode, always use production
+    if (kReleaseMode) return 'prod';
+    // Default to dev for debug builds
+    return 'dev';
+  }
 
   static const String devBase = String.fromEnvironment(
     'API_BASE_URL_DEV',
@@ -13,7 +21,7 @@ class Env {
 
   static const String prodBase = String.fromEnvironment(
     'API_BASE_URL_PROD',
-    defaultValue: 'https://api.example.com',
+    defaultValue: 'http://142.93.213.231:5001',
   );
 
   static String get apiBaseUrl => env == 'prod' ? prodBase : devBase;

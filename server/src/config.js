@@ -1,16 +1,12 @@
-// Determine environment from NODE_ENV
+// Load .env file FIRST before checking NODE_ENV
+// Try production first, then dev, then fallback to .env
+require('dotenv').config({ path: '.env.production' });
+require('dotenv').config({ path: '.env.dev' });
+require('dotenv').config({ path: '.env' });
+
+// NOW determine environment from NODE_ENV (after .env is loaded)
 const env = process.env.NODE_ENV || 'development';
 const isProduction = env === 'production';
-
-// Load environment-specific .env file
-if (isProduction) {
-  require('dotenv').config({ path: '.env.production' });
-} else {
-  require('dotenv').config({ path: '.env.dev' });
-}
-
-// Fallback: if specific env file doesn't exist, try .env
-require('dotenv').config({ path: '.env' });
 
 const config = {
   env,
