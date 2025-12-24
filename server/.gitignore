@@ -7,7 +7,7 @@
 
 # Dependencies
 node_modules/
-package-lock.json
+# package-lock.json - Keep this file for consistent builds (required for npm ci)
 
 # Logs
 logs/
