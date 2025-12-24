@@ -21,7 +21,7 @@ class Env {
 
   static const String prodBase = String.fromEnvironment(
     'API_BASE_URL_PROD',
-    defaultValue: 'http://142.93.213.231:5001',
+    defaultValue: 'http://142.93.213.231:5000',
   );
 
   static String get apiBaseUrl => env == 'prod' ? prodBase : devBase;
