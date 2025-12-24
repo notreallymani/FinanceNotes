@@ -5,7 +5,7 @@ module.exports = {
     cwd: '/var/www/FinanceNotes/server',
     env: {
       NODE_ENV: 'production',
-      PORT: 5001
+      PORT: 5000
     },
     instances: 1,
     autorestart: true,
