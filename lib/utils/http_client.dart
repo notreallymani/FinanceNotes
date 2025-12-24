@@ -26,9 +26,19 @@ class HttpClient {
       _dio.interceptors.add(
         InterceptorsWrapper(
           onRequest: (options, handler) async {
-            final token = await _storage.read(key: AppConstants.tokenKey);
-            if (token != null) {
-              options.headers['Authorization'] = 'Bearer $token';
+            // Only add auth token for endpoints that require it
+            // Aadhaar endpoints don't require authentication
+            final path = options.path.toLowerCase();
+            final isAuthEndpoint = path.contains('/auth/') || 
+                                 path.contains('/profile/') || 
+                                 path.contains('/payment/') ||
+                                 path.contains('/chat/');
+            
+            if (isAuthEndpoint) {
+              final token = await _storage.read(key: AppConstants.tokenKey);
+              if (token != null) {
+                options.headers['Authorization'] = 'Bearer $token';
+              }
             }
             Logger.log('REQ ${options.method} ${options.path}');
             return handler.next(options);

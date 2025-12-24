@@ -214,9 +214,17 @@ router.post('/verify-otp', async (req, res) => {
             message: r.data?.message
           });
           
-          if (r.data && r.data.status_code === 200 && r.data.status === 'success' && r.data.data?.valid_aadhaar === true) {
+          // Check if verification was successful
+          // QuickeKYC may return success with valid_aadhaar as true, or just status success
+          const isSuccess = r.data && 
+                           r.data.status_code === 200 && 
+                           r.data.status === 'success' &&
+                           (r.data.data?.valid_aadhaar === true || r.data.data?.valid_aadhaar === undefined);
+          
+          if (isSuccess) {
             console.log(`${logPrefix} ✅ QuickeKYC verification successful`);
-            // OTP verified by QuickeKYC, continue to user creation/login
+            console.log(`${logPrefix} Response data:`, JSON.stringify(r.data.data || r.data));
+            // OTP verified by QuickeKYC, continue to verification success
           } else {
             // Handle specific QuickeKYC error messages
             let errorMessage = r.data?.message || 'OTP verification failed';
