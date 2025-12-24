@@ -1,8 +1,7 @@
 module.exports = {
   apps: [{
     name: 'financenotes-backend',
-    script: 'npm',
-    args: 'start:prod',
+    script: 'index.js',
     cwd: '/var/www/FinanceNotes/server',
     env: {
       NODE_ENV: 'production',
