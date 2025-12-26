@@ -102,9 +102,9 @@ async function sendPasswordResetEmail(email) {
     
     // Continue URL - where user will be redirected after resetting password
     // This should point to your app's password reset page
-    const continueUrl = config.clientOrigin 
-      ? `${config.clientOrigin}/reset-password`
-      : 'https://financenotes-11ff0.firebaseapp.com/__/auth/action';
+    // IMPORTANT: The domain in continueUrl MUST be in Firebase's authorized domains list
+    // Use Firebase's default domain to avoid UNAUTHORIZED_DOMAIN errors
+    const continueUrl = 'https://financenotes-11ff0.firebaseapp.com/__/auth/action';
     
     // Use Firebase Identity Toolkit REST API to send password reset email
     // This will automatically use the email template configured in Firebase Console
