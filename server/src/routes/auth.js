@@ -161,6 +161,17 @@ router.post('/email-register', async (req, res) => {
       existing.provider = existing.provider || 'password';
       await existing.save();
       
+      // Also create user in Firebase Auth for password reset functionality
+      try {
+        const firebaseAdmin = require('../services/firebaseAdminService');
+        firebaseAdmin.initializeFirebaseAdmin();
+        await firebaseAdmin.createFirebaseUser(normalizedEmail, password);
+        console.log(`${logPrefix} User also created in Firebase Auth`);
+      } catch (firebaseError) {
+        // Log error but don't fail if Firebase fails
+        console.error(`${logPrefix} Warning: Failed to create user in Firebase Auth:`, firebaseError.message);
+      }
+      
       const token = jwtService.generateToken(existing);
       return res.json({ 
         success: true, 
@@ -179,6 +190,18 @@ router.post('/email-register', async (req, res) => {
       passwordHash,
       provider: 'password',
     });
+
+    // Also create user in Firebase Auth for password reset functionality
+    try {
+      const firebaseAdmin = require('../services/firebaseAdminService');
+      firebaseAdmin.initializeFirebaseAdmin();
+      await firebaseAdmin.createFirebaseUser(normalizedEmail, password);
+      console.log(`${logPrefix} User also created in Firebase Auth`);
+    } catch (firebaseError) {
+      // Log error but don't fail registration if Firebase fails
+      console.error(`${logPrefix} Warning: Failed to create user in Firebase Auth:`, firebaseError.message);
+      console.error(`${logPrefix} User registered in database but password reset may not work`);
+    }
 
     const token = jwtService.generateToken(user);
     
@@ -331,6 +354,113 @@ router.post('/change-password', auth, async (req, res) => {
       success: true,
       message: 'Password changed successfully'
     });
+  } catch (error) {
+    console.error(`${logPrefix} ERROR:`, error);
+    return res.status(500).json({ 
+      message: 'Server error',
+      error: config.env === 'development' ? error.message : undefined
+    });
+  }
+});
+
+/**
+ * Forgot Password Endpoint
+ * 
+ * Sends a password reset email using Firebase Auth.
+ * This requires Firebase Admin SDK to be configured.
+ */
+router.post('/forgot-password', async (req, res) => {
+  const logPrefix = '[POST /api/auth/forgot-password]';
+  
+  try {
+    const { email } = req.body;
+    
+    // Validate required fields
+    if (!email) {
+      return res.status(400).json({ 
+        message: 'Email is required' 
+      });
+    }
+
+    const normalizedEmail = String(email).toLowerCase().trim();
+    
+    // Check if user exists in database
+    const user = await User.findOne({ email: normalizedEmail });
+    
+    if (!user) {
+      // Don't reveal if email exists or not (security best practice)
+      console.log(`${logPrefix} Password reset requested for non-existent email: ${normalizedEmail}`);
+      return res.json({ 
+        success: true,
+        message: 'If an account exists with this email, a password reset link has been sent.'
+      });
+    }
+
+    // Check if user has password (not Google-only account)
+    if (!user.passwordHash) {
+      console.log(`${logPrefix} Password reset requested for Google-only account: ${normalizedEmail}`);
+      return res.status(400).json({ 
+        message: 'This account was created with Google Sign-In. Please use Google Sign-In to access your account.'
+      });
+    }
+
+    // Use Firebase Admin SDK to send password reset email
+    try {
+      const firebaseAdmin = require('../services/firebaseAdminService');
+      
+      // Initialize Firebase Admin
+      firebaseAdmin.initializeFirebaseAdmin();
+      
+      // Check if user exists in Firebase Auth, if not, create them
+      try {
+        await firebaseAdmin.sendPasswordResetEmail(normalizedEmail);
+      } catch (firebaseError) {
+        // If user doesn't exist in Firebase Auth, create them
+        if (firebaseError.message.includes('not found in Firebase Auth')) {
+          console.log(`${logPrefix} User not in Firebase Auth, creating user...`);
+          // Note: We can't create user without password, so we'll use a temporary approach
+          // In production, you should create users in Firebase Auth when they register
+          throw new Error('User not found in Firebase Auth. Please ensure the user was created in Firebase Auth during registration.');
+        }
+        throw firebaseError;
+      }
+
+      console.log(`${logPrefix} Password reset email sent to: ${normalizedEmail}`);
+      
+      return res.json({ 
+        success: true,
+        message: 'If an account exists with this email, a password reset link has been sent.'
+      });
+      
+    } catch (firebaseError) {
+      console.error(`${logPrefix} Firebase error:`, firebaseError.message);
+      
+      // Handle Firebase-specific errors
+      if (firebaseError.code === 'auth/user-not-found' || firebaseError.message.includes('not found')) {
+        // Don't reveal if user exists (security best practice)
+        return res.json({ 
+          success: true,
+          message: 'If an account exists with this email, a password reset link has been sent.'
+        });
+      }
+      
+      if (firebaseError.code === 'auth/invalid-email') {
+        return res.status(400).json({ 
+          message: 'Invalid email address'
+        });
+      }
+      
+      // If Firebase Admin is not configured properly
+      if (firebaseError.message.includes('service account') || firebaseError.message.includes('not found')) {
+        return res.status(500).json({ 
+          message: 'Password reset service is not configured. Please contact support.',
+          error: config.env === 'development' ? firebaseError.message : undefined
+        });
+      }
+      
+      throw firebaseError;
+    }
+    
   } catch (error) {
     console.error(`${logPrefix} ERROR:`, error);
     return res.status(500).json({ 
