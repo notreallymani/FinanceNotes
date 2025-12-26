@@ -307,7 +307,7 @@ class AuthProvider with ChangeNotifier {
       
       // Step 2: Get authentication tokens
       final auth = await googleUser.authentication;
-      final idToken = auth?.idToken;
+      final idToken = auth.idToken;
       
       if (idToken == null) {
         debugPrint('[Google Auth] ERROR: idToken is null');

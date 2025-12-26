@@ -10,8 +10,11 @@ class InputField extends StatelessWidget {
   final bool obscureText;
   final int? maxLength;
   final Widget? suffixIcon;
+  final IconData? prefixIcon;
   final bool enabled;
   final void Function(String)? onChanged;
+  final TextAlign? textAlign;
+  final TextStyle? style;
 
   const InputField({
     super.key,
@@ -23,8 +26,11 @@ class InputField extends StatelessWidget {
     this.obscureText = false,
     this.maxLength,
     this.suffixIcon,
+    this.prefixIcon,
     this.enabled = true,
     this.onChanged,
+    this.textAlign,
+    this.style,
   });
 
   @override
@@ -49,9 +55,15 @@ class InputField extends StatelessWidget {
           maxLength: maxLength,
           enabled: enabled,
           onChanged: onChanged,
+          textAlign: textAlign ?? TextAlign.start,
+          style: style ?? GoogleFonts.inter(
+            fontSize: 16,
+            color: Colors.grey[900],
+          ),
           decoration: InputDecoration(
             hintText: hint,
             suffixIcon: suffixIcon,
+            prefixIcon: prefixIcon != null ? Icon(prefixIcon) : null,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: Colors.grey[300]!),
@@ -82,10 +94,6 @@ class InputField extends StatelessWidget {
               vertical: 16,
             ),
             counterText: '',
-          ),
-          style: GoogleFonts.inter(
-            fontSize: 16,
-            color: Colors.grey[900],
           ),
         ),
       ],

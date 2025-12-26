@@ -121,6 +121,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final user = authProvider.user;
 
+    // Ensure we have a valid token before updating
+    final token = await authProvider.loadToken();
+    if (token == null || token.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Authentication required. Please login again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final success = await profileProvider.updateProfile(
       name: _nameController.text.trim(),
       phone: _mobileController.text.trim(),
@@ -131,6 +144,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!mounted) return;
 
     if (success) {
+      // Refresh user data from auth provider
       await authProvider.fetchProfile();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -139,12 +153,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(profileProvider.error ?? 'Failed to update profile'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      final errorMsg = profileProvider.error ?? 'Failed to update profile';
+      if (errorMsg.contains('401') || errorMsg.contains('Unauthorized')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Session expired. Please login again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMsg),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -410,12 +434,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   SizedBox(
                     height: 48,
                     child: ElevatedButton(
-                      onPressed: _isSendingOtp ? null : _sendOtp,
+                      onPressed: (_isSendingOtp || _isVerifyingOtp) ? null : _sendOtp,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).primaryColor,
+                        backgroundColor: (_isSendingOtp || _isVerifyingOtp)
+                            ? Colors.grey[400]
+                            : Theme.of(context).primaryColor,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
+                        disabledBackgroundColor: Colors.grey[400],
                       ),
                       child: _isSendingOtp
                           ? const SizedBox(
@@ -423,7 +450,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation(Colors.white),
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                               ),
                             )
                           : Text(

@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../../models/transaction_model.dart';
 import '../../providers/payment_provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../widgets/input_field.dart';
 import '../../widgets/skeleton_loader.dart';
 import '../../utils/navigation_helper.dart';
 import '../../utils/transaction_filter_util.dart';
@@ -306,49 +305,6 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
   }
 
   Widget _buildQuickFilters() {
-
-  Widget _buildActiveFiltersBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.blue[50],
-        border: Border(
-          bottom: BorderSide(color: Colors.blue[200]!),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.filter_alt, size: 18, color: Colors.blue[700]),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              TransactionFilterUtil.getFilterSummary(_filter),
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                color: Colors.blue[900],
-                fontWeight: FontWeight.w500,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          TextButton(
-            onPressed: _clearFilters,
-            child: Text(
-              'Clear',
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.blue[700],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickFilters() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -435,6 +391,47 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildActiveFiltersBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        border: Border(
+          bottom: BorderSide(color: Colors.blue[200]!),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.filter_alt, size: 18, color: Colors.blue[700]),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              TransactionFilterUtil.getFilterSummary(_filter),
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: Colors.blue[900],
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          TextButton(
+            onPressed: _clearFilters,
+            child: Text(
+              'Clear',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.blue[700],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

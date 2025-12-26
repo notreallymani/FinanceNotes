@@ -92,9 +92,9 @@ class _ChatScreenState extends State<ChatScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final currentUserAadhar = authProvider.user?.aadhar ?? '';
     final isOwner = widget.transaction.senderAadhar == currentUserAadhar;
-    final otherPartyAadhar = isOwner 
-        ? widget.transaction.receiverAadhar 
-        : widget.transaction.senderAadhar;
+    // final otherPartyAadhar = isOwner 
+    //     ? widget.transaction.receiverAadhar 
+    //     : widget.transaction.senderAadhar;
 
     return Scaffold(
       appBar: AppBar(

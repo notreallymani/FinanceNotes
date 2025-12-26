@@ -94,7 +94,7 @@ class PaymentRepository {
     int limit = 50,
     bool useCache = true,
   }) async {
-    final cacheKey = 'payment_history_$aadhar\_$page\_$limit';
+    final cacheKey = 'payment_history_${aadhar}_${page}_$limit';
 
     // Check cache first (only for first page)
     if (useCache && page == 1) {
@@ -142,7 +142,7 @@ class PaymentRepository {
         page: page,
         limit: limit,
       );
-      await _cache.put('payment_history_$aadhar\_$page\_$limit', {
+      await _cache.put('payment_history_${aadhar}_${page}_$limit', {
         'transactions': freshTransactions.map((t) => t.toJson()).toList(),
       });
     } catch (e) {
@@ -156,7 +156,7 @@ class PaymentRepository {
     int limit = 50,
     bool useCache = true,
   }) async {
-    final cacheKey = 'payment_all_$page\_$limit';
+    final cacheKey = 'payment_all_${page}_$limit';
 
     // Check cache first (only for first page)
     if (useCache && page == 1) {
@@ -194,16 +194,17 @@ class PaymentRepository {
 
   /// Invalidate history cache
   Future<void> _invalidateHistoryCache() async {
-    // Clear all payment-related cache
-    // In production, you might want to be more selective
-    final keys = [
-      'payment_history_',
-      'payment_all_',
+    // Clear payment-related cache entries
+    // Clear common cache keys (we can't pattern match, so clear known keys)
+    final commonKeys = [
+      'payment_all_1_50', // Most common fetchAll call
+      'payment_all_1_100',
     ];
-    for (final key in keys) {
-      // Note: ApiCache doesn't support pattern deletion
-      // This is a limitation, but acceptable for now
+    for (final key in commonKeys) {
+      await _cache.remove(key);
     }
+    // Also clear memory cache for payment_all pattern
+    // The memory cache will expire naturally, but we try to clear what we can
   }
 
   /// Clear all cache

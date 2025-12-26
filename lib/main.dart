@@ -17,9 +17,7 @@ import 'screens/payment/payment_success_screen.dart';
 import 'screens/payment/payment_history_screen.dart';
 import 'screens/search/search_screen.dart';
 import 'screens/profile/profile_screen.dart';
-import 'widgets/loader.dart';
 import 'screens/help/help_support_screen.dart';
-import 'screens/chat/chat_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -142,6 +140,7 @@ class _SplashScreenState extends State<SplashScreen> {
       if (user != null && user.aadhar.isNotEmpty) {
         paymentProvider.fetchHistory(user.aadhar).catchError((_) {
           // Silently fail - user can refresh later
+          return false;
         });
       }
       // Navigate immediately - don't wait for payment history

@@ -205,125 +205,17 @@ class _ClosePaymentScreenState extends State<ClosePaymentScreen> {
   }
 
   Future<void> _startCustomerClose(BuildContext context, TransactionModel t) async {
-    // Prevent multiple bottom sheets
-    if (_isBottomSheetShowing) {
-      return;
-    }
-
-    _ownerAadharController.text = t.senderAadhar;
-    _otpController.clear();
-    setState(() {
-      _otpSent = false;
-      _selectedTransactionId = t.id;
-      _isBottomSheetShowing = true;
-    });
-
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      isDismissible: true,
-      enableDrag: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    // Navigate to customer close screen
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CustomerCloseScreen(transaction: t),
       ),
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 24,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Close as Customer',
-                style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Enter owner Aadhaar and verify OTP sent to owner to close this payment.',
-                style: GoogleFonts.inter(fontSize: 13, color: Colors.grey[700]),
-              ),
-              const SizedBox(height: 16),
-              InputField(
-                label: 'Owner Aadhaar',
-                hint: 'Enter owner Aadhaar',
-                controller: _ownerAadharController,
-                validator: Validators.validateAadhar,
-              ),
-              const SizedBox(height: 12),
-              if (_otpSent) ...[
-                InputField(
-                  label: 'OTP (sent to owner)',
-                  hint: 'Enter 6-digit OTP',
-                  controller: _otpController,
-                  keyboardType: TextInputType.number,
-                  maxLength: 6,
-                ),
-              ],
-              const SizedBox(height: 16),
-              Consumer<PaymentProvider>(
-                builder: (context, paymentProvider, _) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      PrimaryButton(
-                        text: _otpSent ? 'Verify & Close' : 'Send OTP to Owner',
-                        isLoading: _otpSent
-                            ? paymentProvider.isLoading
-                            : paymentProvider.isOtpSending,
-                        onPressed: () async {
-                          if (!_otpSent) {
-                            final valid = Validators.validateAadhar(
-                                  _ownerAadharController.text.trim(),
-                                ) ==
-                                null;
-                            if (!valid) return;
-                            await _sendCustomerOtp(context, t);
-                          } else {
-                            if (_otpController.text.trim().length != 6) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Enter valid 6-digit OTP'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                              return;
-                            }
-                            await _verifyCustomerOtp(context, t);
-                            if (context.mounted) {
-                              Navigator.pop(context);
-                              setState(() {
-                                _isBottomSheetShowing = false;
-                              });
-                            }
-                          }
-                        },
-                      ),
-                      if (_otpSent) ...[
-                        const SizedBox(height: 8),
-                        TextButton(
-                          onPressed: paymentProvider.isOtpSending
-                              ? null
-                              : () => _sendCustomerOtp(context, t),
-                          child: const Text('Resend OTP'),
-                        ),
-                      ],
-                    ],
-                  );
-                },
-              ),
-            ],
-          ),
-        );
-      },
     );
+
+    if (result == true) {
+      await _loadPending();
+    }
   }
 
   @override

@@ -72,6 +72,15 @@ class PaymentProvider with ChangeNotifier {
         interest: interest,
         documents: documents,
       );
+      
+      // Clear cache and refresh the list to show the new payment
+      await _cache.remove('payment_all_1_50');
+      await _cache.remove('payment_all_1_100');
+      // Refresh the list without cache in background (don't wait)
+      fetchAll(page: 1, limit: 50, useCache: false).catchError((_) {
+        // Silently fail - user can manually refresh
+      });
+      
       _isLoading = false;
       notifyListeners();
       return true;
@@ -147,7 +156,7 @@ class PaymentProvider with ChangeNotifier {
   }
 
   Future<bool> fetchAll({int page = 1, int limit = 50, bool useCache = true}) async {
-    final cacheKey = 'payment_all_$page\_$limit';
+    final cacheKey = 'payment_all_${page}_$limit';
     
     // Check cache first
     if (useCache && page == 1) {
@@ -199,7 +208,7 @@ class PaymentProvider with ChangeNotifier {
     try {
       final freshHistory = await _repo.getAll(page: page, limit: limit);
       _history = freshHistory;
-      await _cache.put('payment_all_$page\_$limit', {
+      await _cache.put('payment_all_${page}_$limit', {
         'transactions': _history.map((t) => t.toJson()).toList(),
       });
       notifyListeners();

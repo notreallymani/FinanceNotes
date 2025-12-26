@@ -30,7 +30,7 @@ class HttpClient {
             // Aadhaar endpoints don't require authentication
             final path = options.path.toLowerCase();
             final isAuthEndpoint = path.contains('/auth/') || 
-                                 path.contains('/profile/') || 
+                                 path.contains('/profile') || 
                                  path.contains('/payment/') ||
                                  path.contains('/chat/');
             

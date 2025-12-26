@@ -9,7 +9,6 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/transaction_model.dart';
 import '../../services/document_service.dart';
-import '../../utils/navigation_helper.dart';
 
 class TransactionDetailScreen extends StatelessWidget {
   final TransactionModel transaction;

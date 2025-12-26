@@ -80,9 +80,3 @@ class ProfileProvider with ChangeNotifier {
   }
 }
 
-  void clearError() {
-    _error = null;
-    notifyListeners();
-  }
-}
-

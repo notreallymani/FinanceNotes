@@ -96,14 +96,6 @@ class ProfileNotVerifiedScreen extends StatelessWidget {
               ElevatedButton(
                 onPressed: () {
                   Navigator.of(context).pop();
-                  NavigationHelper.fadeTo(
-                    context,
-                    const MaterialPageRoute(
-                      builder: (context) => Scaffold(
-                        body: Center(child: Text('Profile Screen')),
-                      ),
-                    ),
-                  );
                   Navigator.pushNamed(context, '/profile');
                 },
                 style: ElevatedButton.styleFrom(

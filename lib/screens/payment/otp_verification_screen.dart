@@ -11,13 +11,14 @@ import '../../widgets/primary_button.dart';
 import '../../widgets/input_field.dart';
 import '../../utils/validators.dart';
 import '../../api/aadhar_api.dart';
+import 'package:file_picker/file_picker.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
   final String aadhar;
   final double amount;
   final String? mobile;
   final double? interest;
-  final List<dynamic>? proofFiles;
+  final List<PlatformFile>? proofFiles;
 
   const OtpVerificationScreen({
     Key? key,

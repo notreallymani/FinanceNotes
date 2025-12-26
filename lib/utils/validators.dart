@@ -79,4 +79,18 @@ class Validators {
     }
     return null;
   }
+
+  /// Validate name
+  static String? validateName(String? name) {
+    if (name == null || name.isEmpty) {
+      return 'Name is required';
+    }
+    if (name.length < 2) {
+      return 'Name must be at least 2 characters';
+    }
+    if (name.length > 50) {
+      return 'Name must be less than 50 characters';
+    }
+    return null;
+  }
 }

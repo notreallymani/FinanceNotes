@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 import '../utils/app_constants.dart';
-import '../utils/env.dart';
 import '../models/transaction_model.dart';
 import '../utils/http_client.dart';
 import '../utils/logger.dart';

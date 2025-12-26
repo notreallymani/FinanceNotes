@@ -176,9 +176,9 @@ class _TransactionFilterBottomSheetState
               selected: isSelected,
               onSelected: (selected) {
                 setState(() {
-                  final currentStatuses = Set<String>.from(
-                    _currentFilter.statuses ?? [],
-                  );
+                  final currentStatuses = _currentFilter.statuses != null
+                      ? Set<String>.from(_currentFilter.statuses!)
+                      : <String>{};
                   if (selected) {
                     currentStatuses.add(status);
                   } else {

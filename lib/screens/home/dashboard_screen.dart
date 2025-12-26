@@ -2,10 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/profile_provider.dart';
 import '../../widgets/primary_button.dart';
 import '../../utils/navigation_helper.dart';
 import '../home/about_screen.dart';
+import '../profile/profile_screen.dart';
+import '../payment/send_payment_screen.dart';
+import '../payment/close_payment_screen.dart';
+import '../search/search_screen.dart';
+import '../payment/payment_history_screen.dart';
+import '../chat/chat_list_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -225,8 +230,13 @@ class DashboardScreen extends StatelessWidget {
                     title: 'About',
                     onTap: () {
                       Navigator.pop(context);
-                      // Show about dialog
-                      _showAboutDialog(context);
+                      // Show about screen
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AboutScreen(),
+                        ),
+                      );
                     },
                   ),
                 ],
