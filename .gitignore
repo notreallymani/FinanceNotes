@@ -53,6 +53,7 @@ server/.env.dev
 server/.env.production
 *.keystore
 *.jks
+android/key.properties
 android/app/google-services.json
 server/*-key.json
 server/*-service-account*.json

@@ -49,13 +49,8 @@ app.use((req, res) => {
   res.status(404).json({ message: 'Route not found', path: req.path });
 });
 
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error(`[ERROR] ${req.method} ${req.path}:`, err);
-  res.status(err.status || 500).json({
-    message: err.message || 'Internal server error',
-    error: config.env === 'development' ? err.stack : undefined
-  });
-});
+// Global error handler (using new error handler)
+const { errorHandler } = require('./middleware/errorHandler');
+app.use(errorHandler);
 
 module.exports = app;

@@ -27,6 +27,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isSendingOtp = false;
   bool _isVerifyingOtp = false;
   bool _isInitialized = false;
+  bool _otpSent = false;
+  String? _pendingAadhar;
 
   @override
   void initState() {
@@ -97,8 +99,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
-    // If Aadhaar is new or not verified, run Aadhaar OTP verification first.
-    await _startAadharOtpFlow(enteredAadhar: enteredAadhar);
+    // If Aadhaar is new or not verified, show message to use Get OTP button
+    if (!isAadharVerified && enteredAadhar != currentAadhar) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please use "Get OTP" button to verify Aadhaar first'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // If Aadhaar is already verified and unchanged, just update profile
+    await _updateProfile(
+      aadhar: currentAadhar,
+    );
   }
 
   Future<void> _updateProfile({String? aadhar}) async {
@@ -133,8 +148,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _startAadharOtpFlow({required String enteredAadhar}) async {
-    if (enteredAadhar.isEmpty) {
+  Future<void> _sendOtp() async {
+    // Prevent multiple clicks
+    if (_isSendingOtp) {
+      return;
+    }
+
+    final aadhar = _aadharController.text.trim();
+    
+    if (aadhar.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter Aadhaar number'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Validate Aadhaar format
+    final aadharError = Validators.validateAadhar(aadhar);
+    if (aadharError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(aadharError),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
 
@@ -145,13 +185,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     try {
-      await _aadharApi.generateOtp(enteredAadhar);
+      await _aadharApi.generateOtp(aadhar);
       if (!mounted) return;
       setState(() {
         _isSendingOtp = false;
+        _otpSent = true;
+        _pendingAadhar = aadhar;
       });
       _otpController.clear();
-      _showAadharOtpBottomSheet(aadhar: enteredAadhar);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('OTP sent successfully to your Aadhaar linked mobile number'),
+          backgroundColor: Colors.green,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -166,88 +213,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  void _showAadharOtpBottomSheet({required String aadhar}) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 24,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Verify Aadhaar OTP',
-                style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Enter the 6-digit OTP sent to your Aadhaar linked mobile number.',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
-              ),
-              const SizedBox(height: 24),
-              InputField(
-                label: 'OTP',
-                hint: 'Enter 6-digit OTP',
-                controller: _otpController,
-                validator: Validators.validateOtp,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-              ),
-              const SizedBox(height: 24),
-              PrimaryButton(
-                text: 'Verify & Save',
-                onPressed: _isVerifyingOtp
-                    ? null
-                    : () => _verifyAadharOtpAndSave(aadhar: aadhar),
-                isLoading: _isVerifyingOtp,
-              ),
-              if (_isVerifyingOtp) ...[
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Verifying OTP...',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        );
-      },
-    );
-  }
 
-  Future<void> _verifyAadharOtpAndSave({required String aadhar}) async {
+  Future<void> _verifyOtpAndSave() async {
+    // Prevent multiple clicks
+    if (_isVerifyingOtp) {
+      return;
+    }
+
+    if (_pendingAadhar == null) {
+      return;
+    }
+
     final otp = _otpController.text.trim();
     if (otp.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -264,12 +240,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     try {
-      await _aadharApi.verifyAadharOtp(aadhar, otp);
+      await _aadharApi.verifyAadharOtp(_pendingAadhar!, otp);
       if (!mounted) return;
 
-      Navigator.of(context).pop();
-      await _updateProfile(aadhar: aadhar);
+      // Automatically save profile after successful verification
+      await _updateProfile(aadhar: _pendingAadhar);
+      
+      // Reset OTP state
+      setState(() {
+        _isVerifyingOtp = false;
+        _otpSent = false;
+        _pendingAadhar = null;
+      });
       _otpController.clear();
+      
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Aadhaar verified and profile saved successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -278,12 +269,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           backgroundColor: Colors.red,
         ),
       );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isVerifyingOtp = false;
-        });
-      }
+      setState(() {
+        _isVerifyingOtp = false;
+      });
     }
   }
 
@@ -405,8 +393,91 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   validator: Validators.validateAadhar,
                   keyboardType: TextInputType.number,
                   maxLength: 12,
-                  enabled: !isAadharVerified,
+                  enabled: !isAadharVerified && !_otpSent,
+                  onChanged: (value) {
+                    // Reset OTP state if user changes Aadhaar number
+                    if (_otpSent && value.trim() != _pendingAadhar) {
+                      setState(() {
+                        _otpSent = false;
+                        _pendingAadhar = null;
+                        _otpController.clear();
+                      });
+                    }
+                  },
                 ),
+                if (!isAadharVerified) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: _isSendingOtp ? null : _sendOtp,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).primaryColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _isSendingOtp
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation(Colors.white),
+                              ),
+                            )
+                          : Text(
+                              'Get OTP',
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
+                if (_otpSent && !isAadharVerified) ...[
+                  const SizedBox(height: 20),
+                  InputField(
+                    label: 'Enter OTP',
+                    hint: 'Enter 6-digit OTP',
+                    controller: _otpController,
+                    validator: Validators.validateOtp,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: _isVerifyingOtp ? null : _verifyOtpAndSave,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _isVerifyingOtp
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation(Colors.white),
+                              ),
+                            )
+                          : Text(
+                              'Verify OTP & Save',
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 32),
                 Consumer<ProfileProvider>(
                   builder: (context, profileProvider, _) {

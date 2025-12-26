@@ -68,100 +68,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _showForgotPasswordDialog() async {
-    final emailController = TextEditingController();
-    await showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(
-            'Forgot Password',
-            style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Enter your email to receive a password reset link.',
-                style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[700]),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Cancel',
-                style: GoogleFonts.inter(),
-              ),
-            ),
-            Consumer<AuthProvider>(
-              builder: (context, authProvider, _) {
-                return TextButton(
-                  onPressed: authProvider.isLoading
-                      ? null
-                      : () async {
-                          final email = emailController.text.trim();
-                          final error = Validators.validateEmail(email);
-                          if (error != null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(error),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                            return;
-                          }
-
-                          final ok =
-                              await authProvider.sendPasswordReset(email);
-                          if (!context.mounted) return;
-                          if (ok) {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'If an account exists, a reset link has been sent.',
-                                ),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                          } else if (authProvider.error != null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(authProvider.error!),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        },
-                  child: authProvider.isLoading
-                      ? SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(
-                          'Send',
-                          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-                        ),
-                );
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -229,7 +135,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: _showForgotPasswordDialog,
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const ForgotPasswordScreen(),
+                            ),
+                          );
+                        },
                         child: Text(
                           'Forgot password?',
                           style: GoogleFonts.inter(

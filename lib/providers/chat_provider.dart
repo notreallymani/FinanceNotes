@@ -1,10 +1,19 @@
+/// Chat Provider (Refactored with SOLID Principles)
+/// 
+/// Single Responsibility: State management only
+/// Dependency Inversion: Depends on use case abstraction
+
 import 'package:flutter/foundation.dart';
-import '../api/chat_api.dart';
+import '../use_cases/chat_use_case.dart';
+import '../repositories/chat_repository.dart';
 import '../models/chat_model.dart';
 import '../models/chat_conversation_model.dart';
 
 class ChatProvider with ChangeNotifier {
-  final ChatApi _api = ChatApi();
+  final ChatUseCase _useCase;
+
+  ChatProvider({ChatUseCase? useCase})
+      : _useCase = useCase ?? ChatUseCase(ChatRepository());
 
   List<ChatMessage> _messages = [];
   List<ChatConversation> _conversations = [];
@@ -18,56 +27,63 @@ class ChatProvider with ChangeNotifier {
   String? get error => _error;
   String? get currentTransactionId => _currentTransactionId;
 
-  Future<bool> loadMessages(String transactionId) async {
+  /// Load messages for a transaction
+  Future<bool> loadMessages(String transactionId, {bool useCache = true}) async {
     _isLoading = true;
     _error = null;
     _currentTransactionId = transactionId;
     notifyListeners();
 
-    try {
-      _messages = await _api.getMessages(transactionId);
-      _isLoading = false;
+    final result = await _useCase.loadMessages(transactionId, useCache: useCache);
+
+    _isLoading = false;
+    if (result.success && result.messages != null) {
+      _messages = result.messages!;
+      _error = null;
       notifyListeners();
       return true;
-    } catch (e) {
-      _error = e.toString().replaceAll('Exception: ', '');
-      _isLoading = false;
+    } else {
+      _error = result.error;
       notifyListeners();
       return false;
     }
   }
 
-  Future<bool> loadConversations() async {
+  /// Load conversations
+  Future<bool> loadConversations({bool useCache = true}) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
-    try {
-      _conversations = await _api.getConversations();
-      _isLoading = false;
+    final result = await _useCase.loadConversations(useCache: useCache);
+
+    _isLoading = false;
+    if (result.success && result.conversations != null) {
+      _conversations = result.conversations!;
+      _error = null;
       notifyListeners();
       return true;
-    } catch (e) {
-      _error = e.toString().replaceAll('Exception: ', '');
-      _isLoading = false;
+    } else {
+      _error = result.error;
       notifyListeners();
       return false;
     }
   }
 
+  /// Send message
   Future<bool> sendMessage(String transactionId, String message) async {
-    if (message.trim().isEmpty) return false;
+    final result = await _useCase.sendMessage(
+      transactionId: transactionId,
+      message: message,
+    );
 
-    try {
-      final newMessage = await _api.sendMessage(
-        transactionId: transactionId,
-        message: message.trim(),
-      );
-      _messages.add(newMessage);
+    if (result.success && result.message != null) {
+      _messages.add(result.message!);
+      _error = null;
       notifyListeners();
       return true;
-    } catch (e) {
-      _error = e.toString().replaceAll('Exception: ', '');
+    } else {
+      _error = result.error;
       notifyListeners();
       return false;
     }

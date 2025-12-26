@@ -8,6 +8,8 @@ import '../../widgets/primary_button.dart';
 import '../../widgets/input_field.dart';
 import '../../utils/validators.dart';
 import '../../models/transaction_model.dart';
+import 'close_payment_confirmation_screen.dart';
+import 'customer_close_screen.dart';
 
 class ClosePaymentScreen extends StatefulWidget {
   const ClosePaymentScreen({super.key});
@@ -22,8 +24,12 @@ class _ClosePaymentScreenState extends State<ClosePaymentScreen> {
   final _ownerAadharController = TextEditingController();
   final _otpController = TextEditingController();
   bool _otpSent = false;
+  bool _isSendingOtp = false;
+  bool _isVerifyingOtp = false;
+  bool _isClosingPayment = false;
+  bool _isBottomSheetShowing = false;
   String? _selectedTransactionId;
-  
+  String _selectedTab = 'sent'; // 'sent' or 'received'
 
   @override
   void initState() {
@@ -69,109 +75,62 @@ class _ClosePaymentScreenState extends State<ClosePaymentScreen> {
   }
 
   Future<void> _confirmAndClose(TransactionModel transaction) async {
-    final aadhaarInput = TextEditingController();
+    // Prevent multiple clicks
+    if (_isClosingPayment) {
+      return;
+    }
 
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    setState(() {
+      _isClosingPayment = true;
+    });
+
+    // Navigate to confirmation screen
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ClosePaymentConfirmationScreen(
+          transaction: transaction,
+        ),
       ),
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 24,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Confirm Close',
-                style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Transaction: ${transaction.id}',
-                style: GoogleFonts.inter(fontSize: 14),
-              ),
-              const SizedBox(height: 16),
-              InputField(
-                label: 'Customer Aadhaar',
-                hint: 'Enter customer Aadhaar to confirm',
-                controller: aadhaarInput,
-                validator: Validators.validateAadhar,
-              ),
-              const SizedBox(height: 24),
-              Consumer<PaymentProvider>(
-                builder: (context, paymentProvider, _) {
-                  return PrimaryButton(
-                    text: 'Close Payment',
-                    isLoading: paymentProvider.isLoading,
-                    onPressed: () async {
-                      final formValid =
-                          Validators.validateAadhar(aadhaarInput.text.trim()) ==
-                              null;
-                      if (!formValid) return;
-
-                      // Customer Aadhaar must match receiverAadhar
-                      final expectedAadhar = transaction.receiverAadhar;
-                      if (aadhaarInput.text.trim() != expectedAadhar) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Aadhaar does not match customer'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                        return;
-                      }
-
-                      final ok =
-                          await paymentProvider.closePayment(transaction.id);
-                      if (!mounted) return;
-                      if (ok) {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Payment closed successfully'),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                        await _loadPending();
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(paymentProvider.error ??
-                                'Failed to close payment'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    },
-                  );
-                },
-              ),
-            ],
-          ),
-        );
-      },
     );
+
+    if (result == true) {
+      await _loadPending();
+    }
+
+    setState(() {
+      _isClosingPayment = false;
+    });
   }
 
   Future<void> _sendCustomerOtp(BuildContext context, TransactionModel t) async {
+    // Prevent multiple clicks
+    if (_isSendingOtp) {
+      return;
+    }
+
+    setState(() {
+      _isSendingOtp = true;
+    });
+
     final paymentProvider =
         Provider.of<PaymentProvider>(context, listen: false);
     final ok = await paymentProvider.sendCustomerCloseOtp(
       transactionId: t.id,
       ownerAadhar: _ownerAadharController.text.trim(),
     );
-    if (!mounted) return;
+    
+    if (!mounted) {
+      setState(() {
+        _isSendingOtp = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isSendingOtp = false;
+    });
+
     if (ok) {
       setState(() {
         _otpSent = true;
@@ -194,6 +153,15 @@ class _ClosePaymentScreenState extends State<ClosePaymentScreen> {
   }
 
   Future<void> _verifyCustomerOtp(BuildContext context, TransactionModel t) async {
+    // Prevent multiple clicks
+    if (_isVerifyingOtp) {
+      return;
+    }
+
+    setState(() {
+      _isVerifyingOtp = true;
+    });
+
     final paymentProvider =
         Provider.of<PaymentProvider>(context, listen: false);
     final ok = await paymentProvider.verifyCustomerCloseOtp(
@@ -201,7 +169,18 @@ class _ClosePaymentScreenState extends State<ClosePaymentScreen> {
       ownerAadhar: _ownerAadharController.text.trim(),
       otp: _otpController.text.trim(),
     );
-    if (!mounted) return;
+    
+    if (!mounted) {
+      setState(() {
+        _isVerifyingOtp = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isVerifyingOtp = false;
+    });
+
     if (ok) {
       setState(() {
         _otpSent = false;
@@ -226,16 +205,24 @@ class _ClosePaymentScreenState extends State<ClosePaymentScreen> {
   }
 
   Future<void> _startCustomerClose(BuildContext context, TransactionModel t) async {
+    // Prevent multiple bottom sheets
+    if (_isBottomSheetShowing) {
+      return;
+    }
+
     _ownerAadharController.text = t.senderAadhar;
     _otpController.clear();
     setState(() {
       _otpSent = false;
       _selectedTransactionId = t.id;
+      _isBottomSheetShowing = true;
     });
 
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      isDismissible: true,
+      enableDrag: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -310,7 +297,12 @@ class _ClosePaymentScreenState extends State<ClosePaymentScreen> {
                               return;
                             }
                             await _verifyCustomerOtp(context, t);
-                            if (context.mounted) Navigator.pop(context);
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              setState(() {
+                                _isBottomSheetShowing = false;
+                              });
+                            }
                           }
                         },
                       ),
@@ -365,61 +357,92 @@ class _ClosePaymentScreenState extends State<ClosePaymentScreen> {
                           t.receiverAadhar == userAadhar)
                       .toList()
                     ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+                  
                   if (paymentProvider.isLoading) {
                     return const Center(child: CircularProgressIndicator());
                   }
+                  
                   return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        'You are the Owner (Sent)',
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
+                      // Tab Buttons
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _buildTabButton(
+                                'Sent',
+                                _selectedTab == 'sent',
+                                () => setState(() => _selectedTab = 'sent'),
+                              ),
+                            ),
+                            Expanded(
+                              child: _buildTabButton(
+                                'Received',
+                                _selectedTab == 'received',
+                                () => setState(() => _selectedTab = 'received'),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      if (ownerPending.isEmpty)
+                      // Content based on selected tab
+                      if (_selectedTab == 'sent') ...[
                         Text(
-                          'No pending transactions you created.',
+                          'You are the Owner (Sent)',
                           style: GoogleFonts.inter(
-                              fontSize: 14, color: Colors.grey[600]),
-                        )
-                      else
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: ownerPending.length,
-                          itemBuilder: (context, index) {
-                            final t = ownerPending[index];
-                            return _ownerCard(t);
-                          },
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      const SizedBox(height: 24),
-                      Text(
-                        'You are the Customer (Received)',
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      if (customerPending.isEmpty)
+                        const SizedBox(height: 8),
+                        if (ownerPending.isEmpty)
+                          Text(
+                            'No pending transactions you created.',
+                            style: GoogleFonts.inter(
+                                fontSize: 14, color: Colors.grey[600]),
+                          )
+                        else
+                          ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: ownerPending.length,
+                            itemBuilder: (context, index) {
+                              final t = ownerPending[index];
+                              return _ownerCard(t);
+                            },
+                          ),
+                      ] else ...[
                         Text(
-                          'No pending transactions you received.',
+                          'You are the Customer (Received)',
                           style: GoogleFonts.inter(
-                              fontSize: 14, color: Colors.grey[600]),
-                        )
-                      else
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: customerPending.length,
-                          itemBuilder: (context, index) {
-                            final t = customerPending[index];
-                            return _customerCard(t);
-                          },
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
+                        const SizedBox(height: 8),
+                        if (customerPending.isEmpty)
+                          Text(
+                            'No pending transactions you received.',
+                            style: GoogleFonts.inter(
+                                fontSize: 14, color: Colors.grey[600]),
+                          )
+                        else
+                          ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: customerPending.length,
+                            itemBuilder: (context, index) {
+                              final t = customerPending[index];
+                              return _customerCard(t);
+                            },
+                          ),
+                      ],
                     ],
                   );
                 },
@@ -631,5 +654,36 @@ class _ClosePaymentScreenState extends State<ClosePaymentScreen> {
       default:
         return Colors.grey;
     }
+  }
+
+  Widget _buildTabButton(String label, bool isSelected, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            color: isSelected ? Colors.blue[700] : Colors.grey[600],
+          ),
+        ),
+      ),
+    );
   }
 }

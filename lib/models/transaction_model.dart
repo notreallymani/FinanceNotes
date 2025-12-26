@@ -9,6 +9,7 @@ class TransactionModel {
   final String? mobile;
   final String? senderMobile;
   final double interest;
+  final List<TransactionDocument> documents;
 
   TransactionModel({
     required this.id,
@@ -21,9 +22,15 @@ class TransactionModel {
     this.closedAt,
     this.mobile,
     this.senderMobile,
+    this.documents = const [],
   });
 
   factory TransactionModel.fromJson(Map<String, dynamic> json) {
+    final documentsJson = json['documents'] as List<dynamic>? ?? [];
+    final documents = documentsJson
+        .map((doc) => TransactionDocument.fromJson(doc as Map<String, dynamic>))
+        .toList();
+
     return TransactionModel(
       id: json['_id'] ?? json['id'] ?? '',
       senderAadhar: json['senderAadhar'] ?? json['sender_aadhar'] ?? '',
@@ -39,6 +46,7 @@ class TransactionModel {
           : null,
       mobile: json['mobile'] ?? json['receiverMobile'],
       senderMobile: json['senderMobile'] ?? json['sender_mobile'],
+      documents: documents,
     );
   }
 
@@ -54,7 +62,55 @@ class TransactionModel {
       'mobile': mobile,
       'senderMobile': senderMobile,
       'interest': interest,
+      'documents': documents.map((doc) => doc.toJson()).toList(),
     };
+  }
+}
+
+/// Transaction Document Model
+class TransactionDocument {
+  final String filename;
+  final String url;
+  final int? size;
+  final String? mimetype;
+
+  TransactionDocument({
+    required this.filename,
+    required this.url,
+    this.size,
+    this.mimetype,
+  });
+
+  factory TransactionDocument.fromJson(Map<String, dynamic> json) {
+    return TransactionDocument(
+      filename: json['filename'] ?? '',
+      url: json['url'] ?? '',
+      size: json['size'] as int?,
+      mimetype: json['mimetype'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'filename': filename,
+      'url': url,
+      'size': size,
+      'mimetype': mimetype,
+    };
+  }
+
+  String get fileExtension {
+    final parts = filename.split('.');
+    return parts.length > 1 ? parts.last.toLowerCase() : '';
+  }
+
+  bool get isImage {
+    final ext = fileExtension;
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(ext);
+  }
+
+  bool get isPdf {
+    return fileExtension == 'pdf';
   }
 }
 

@@ -1,92 +1,82 @@
+/// Validators
+/// 
+/// Single Responsibility: Input validation
+/// Reusable validation functions
+
 class Validators {
-  static String? validateEmail(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Email is required';
+  /// Validate Aadhaar
+  static String? validateAadhar(String? aadhar) {
+    if (aadhar == null || aadhar.isEmpty) {
+      return 'Aadhaar is required';
     }
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(value)) {
-      return 'Please enter a valid email';
+    if (aadhar.length != 12) {
+      return 'Aadhaar must be 12 digits';
+    }
+    if (!RegExp(r'^\d{12}$').hasMatch(aadhar)) {
+      return 'Aadhaar must contain only digits';
     }
     return null;
   }
-  static String? validatePassword(String? value) {
-    if (value == null || value.isEmpty) {
+
+  /// Validate email
+  static String? validateEmail(String? email) {
+    if (email == null || email.isEmpty) {
+      return 'Email is required';
+    }
+    final emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+    if (!emailRegex.hasMatch(email)) {
+      return 'Invalid email format';
+    }
+    return null;
+  }
+
+  /// Validate password
+  static String? validatePassword(String? password) {
+    if (password == null || password.isEmpty) {
       return 'Password is required';
     }
-    if (value.length < 6) {
+    if (password.length < 6) {
       return 'Password must be at least 6 characters';
     }
     return null;
   }
 
-  static String? validateAadhar(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Aadhaar number is required';
+  /// Validate phone
+  static String? validatePhone(String? phone) {
+    if (phone == null || phone.isEmpty) {
+      return null; // Optional
     }
-    if (value.length != 12) {
-      return 'Aadhaar number must be 12 digits';
+    if (phone.length != 10) {
+      return 'Phone must be 10 digits';
     }
-    if (!RegExp(r'^\d+$').hasMatch(value)) {
-      return 'Aadhaar number must contain only digits';
-    }
-    return null;
-  }
-
-  static String? validatePhone(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Mobile number is required';
-    }
-    if (value.length != 10) {
-      return 'Mobile number must be 10 digits';
-    }
-    if (!RegExp(r'^\d+$').hasMatch(value)) {
-      return 'Mobile number must contain only digits';
+    if (!RegExp(r'^\d{10}$').hasMatch(phone)) {
+      return 'Phone must contain only digits';
     }
     return null;
   }
 
-  static String? validateOtp(String? value) {
-    if (value == null || value.isEmpty) {
+  /// Validate OTP
+  static String? validateOtp(String? otp) {
+    if (otp == null || otp.isEmpty) {
       return 'OTP is required';
     }
-    if (value.length != 6) {
+    if (otp.length != 6) {
       return 'OTP must be 6 digits';
     }
-    if (!RegExp(r'^\d+$').hasMatch(value)) {
+    if (!RegExp(r'^\d{6}$').hasMatch(otp)) {
       return 'OTP must contain only digits';
     }
     return null;
   }
 
-  static String? validateName(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Name is required';
-    }
-    if (value.length < 2) {
-      return 'Name must be at least 2 characters';
-    }
-    return null;
-  }
-
-  static String? validateAmount(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Amount is required';
-    }
-    final amount = double.tryParse(value);
+  /// Validate amount
+  static String? validateAmount(double? amount) {
     if (amount == null) {
-      return 'Please enter a valid amount';
+      return 'Amount is required';
     }
     if (amount <= 0) {
       return 'Amount must be greater than 0';
     }
     return null;
   }
-
-  static String? validateTransactionId(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Transaction ID is required';
-    }
-    return null;
-  }
 }
-

@@ -54,35 +54,8 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // Development mode: Accept any 6-digit OTP
-      if (kDebugMode && otp.length == 6) {
-        await Future.delayed(const Duration(seconds: 1)); // Simulate network delay
-        
-        // Create a dummy token
-        final dummyToken = 'dummy_jwt_${DateTime.now().millisecondsSinceEpoch}';
-        final dummyEmail = 'user_$aadhar@example.com';
-        
-        // Create and save dummy user
-        final user = UserModel(
-          id: 'dev_$aadhar',
-          name: 'Verified User',
-          email: dummyEmail,
-          aadhar: aadhar,
-          phone: '+1234567890',
-          picture: '',
-          aadharVerified: true,
-        );
-        
-        await saveToken(dummyToken);
-        await saveUserData(user);
-        _user = user;
-        
-        _isLoading = false;
-        notifyListeners();
-        return true;
-      }
-
-      // Production flow - real API call
+      // Always use real API call - backend handles environment-specific logic
+      // No dummy OTP bypass - backend will use QuickeKYC in production
       final response = await _authApi.verifyOtp(aadhar, otp);
 
       if (response['token'] != null) {

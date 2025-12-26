@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 
 import '../../api/aadhar_api.dart';
 import '../../providers/payment_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../widgets/primary_button.dart';
 import '../../widgets/input_field.dart';
 import '../../utils/validators.dart';
@@ -31,6 +32,7 @@ class _SendPaymentScreenState extends State<SendPaymentScreen> {
 
   bool _isSendingOtp = false;
   bool _isVerifyingOtp = false;
+  bool _isOtpBottomSheetShowing = false;
   List<PlatformFile> _proofFiles = [];
 
   @override
@@ -76,7 +78,28 @@ class _SendPaymentScreenState extends State<SendPaymentScreen> {
   }
 
   Future<void> _handleSendPayment() async {
+    // Prevent multiple clicks
+    if (_isSendingOtp || _isOtpBottomSheetShowing) {
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) return;
+
+    // Check if user's profile Aadhaar is verified
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final user = authProvider.user;
+    final isProfileAadharVerified = user?.aadharVerified ?? false;
+
+    if (!isProfileAadharVerified) {
+      // Show dialog - don't send OTP
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const ProfileNotVerifiedScreen(),
+        ),
+      );
+      return;
+    }
 
     final aadhar = _aadharController.text.trim();
     final amount = double.tryParse(_amountController.text.trim());
@@ -103,16 +126,21 @@ class _SendPaymentScreenState extends State<SendPaymentScreen> {
         _isSendingOtp = false;
       });
       _otpController.clear();
-      _showOtpBottomSheet(
-        aadhar: aadhar,
-        amount: amount,
-        mobile: _mobileController.text.trim().isNotEmpty
-            ? _mobileController.text.trim()
-            : null,
-        interest: _interestController.text.trim().isNotEmpty
-            ? double.tryParse(_interestController.text.trim())
-            : null,
-      );
+      
+      // Prevent showing multiple bottom sheets
+      if (!_isOtpBottomSheetShowing) {
+        _isOtpBottomSheetShowing = true;
+        _showOtpBottomSheet(
+          aadhar: aadhar,
+          amount: amount,
+          mobile: _mobileController.text.trim().isNotEmpty
+              ? _mobileController.text.trim()
+              : null,
+          interest: _interestController.text.trim().isNotEmpty
+              ? double.tryParse(_interestController.text.trim())
+              : null,
+        );
+      }
     } catch (e) {
       setState(() {
         _isSendingOtp = false;
@@ -127,15 +155,34 @@ class _SendPaymentScreenState extends State<SendPaymentScreen> {
     }
   }
 
+
   void _showOtpBottomSheet({
     required String aadhar,
     required double amount,
     String? mobile,
     double? interest,
   }) {
-    showModalBottomSheet(
+    // Navigate to OTP verification screen instead of bottom sheet
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => OtpVerificationScreen(
+          aadhar: aadhar,
+          amount: amount,
+          mobile: mobile,
+          interest: interest,
+          proofFiles: _proofFiles,
+        ),
+      ),
+    );
+    return;
+    
+    // Old bottom sheet code (commented out - not executed)
+    /* showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      isDismissible: true,
+      enableDrag: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -198,7 +245,14 @@ class _SendPaymentScreenState extends State<SendPaymentScreen> {
           ),
         );
       },
-    );
+    ).whenComplete(() {
+      // Reset flag when bottom sheet is dismissed
+      if (mounted) {
+        setState(() {
+          _isOtpBottomSheetShowing = false;
+        });
+      }
+    });
   }
 
   Future<void> _verifyOtpAndSubmit({
@@ -207,6 +261,11 @@ class _SendPaymentScreenState extends State<SendPaymentScreen> {
     String? mobile,
     double? interest,
   }) async {
+    // Prevent multiple clicks
+    if (_isVerifyingOtp) {
+      return;
+    }
+
     final otp = _otpController.text.trim();
     if (otp.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -237,6 +296,7 @@ class _SendPaymentScreenState extends State<SendPaymentScreen> {
       if (!mounted) return;
 
       if (success) {
+        _isOtpBottomSheetShowing = false;
         Navigator.of(context).pop(); // Close OTP sheet
         Navigator.pushReplacementNamed(
           context,

@@ -1,9 +1,18 @@
+/// Search Provider (Refactored with SOLID Principles)
+/// 
+/// Single Responsibility: State management only
+/// Dependency Inversion: Depends on use case abstraction
+
 import 'package:flutter/foundation.dart';
-import '../api/payment_api.dart';
+import '../use_cases/search_use_case.dart';
+import '../repositories/search_repository.dart';
 import '../models/transaction_model.dart';
 
 class SearchProvider with ChangeNotifier {
-  final PaymentApi _paymentApi = PaymentApi();
+  final SearchUseCase _useCase;
+
+  SearchProvider({SearchUseCase? useCase})
+      : _useCase = useCase ?? SearchUseCase(SearchRepository());
 
   List<TransactionModel> _searchResults = [];
   bool _isLoading = false;
@@ -13,19 +22,22 @@ class SearchProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  Future<bool> searchByAadhar(String aadhar) async {
+  /// Search transactions by Aadhaar
+  Future<bool> searchByAadhar(String aadhar, {bool useCache = true}) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
-    try {
-      _searchResults = await _paymentApi.getHistoryByAadhar(aadhar);
-      _isLoading = false;
+    final result = await _useCase.searchByAadhar(aadhar, useCache: useCache);
+
+    _isLoading = false;
+    if (result.success && result.transactions != null) {
+      _searchResults = result.transactions!;
+      _error = null;
       notifyListeners();
       return true;
-    } catch (e) {
-      _error = e.toString().replaceAll('Exception: ', '');
-      _isLoading = false;
+    } else {
+      _error = result.error;
       notifyListeners();
       return false;
     }

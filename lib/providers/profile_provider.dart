@@ -1,9 +1,18 @@
+/// Profile Provider (Refactored with SOLID Principles)
+/// 
+/// Single Responsibility: State management only
+/// Dependency Inversion: Depends on use case abstraction
+
 import 'package:flutter/foundation.dart';
-import '../api/profile_api.dart';
+import '../use_cases/profile_use_case.dart';
+import '../repositories/profile_repository.dart';
 import '../models/user_model.dart';
 
 class ProfileProvider with ChangeNotifier {
-  final ProfileApi _profileApi = ProfileApi();
+  final ProfileUseCase _useCase;
+
+  ProfileProvider({ProfileUseCase? useCase})
+      : _useCase = useCase ?? ProfileUseCase(ProfileRepository());
 
   UserModel? _user;
   bool _isLoading = false;
@@ -13,24 +22,28 @@ class ProfileProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  Future<bool> fetchProfile() async {
+  /// Fetch user profile
+  Future<bool> fetchProfile({bool useCache = true}) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
-    try {
-      _user = await _profileApi.getProfile();
-      _isLoading = false;
+    final result = await _useCase.getProfile(useCache: useCache);
+
+    _isLoading = false;
+    if (result.success && result.user != null) {
+      _user = result.user;
+      _error = null;
       notifyListeners();
       return true;
-    } catch (e) {
-      _error = e.toString().replaceAll('Exception: ', '');
-      _isLoading = false;
+    } else {
+      _error = result.error;
       notifyListeners();
       return false;
     }
   }
 
+  /// Update user profile
   Future<bool> updateProfile({
     String? name,
     String? phone,
@@ -41,23 +54,31 @@ class ProfileProvider with ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    try {
-      _user = await _profileApi.updateProfile(
-        name: name,
-        phone: phone,
-        email: email,
-        aadhar: aadhar,
-      );
-      _isLoading = false;
+    final result = await _useCase.updateProfile(
+      name: name,
+      phone: phone,
+      email: email,
+      aadhar: aadhar,
+    );
+
+    _isLoading = false;
+    if (result.success && result.user != null) {
+      _user = result.user;
+      _error = null;
       notifyListeners();
       return true;
-    } catch (e) {
-      _error = e.toString().replaceAll('Exception: ', '');
-      _isLoading = false;
+    } else {
+      _error = result.error;
       notifyListeners();
       return false;
     }
   }
+
+  void clearError() {
+    _error = null;
+    notifyListeners();
+  }
+}
 
   void clearError() {
     _error = null;

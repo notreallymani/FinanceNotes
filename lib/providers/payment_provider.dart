@@ -1,12 +1,17 @@
 import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:dio/dio.dart';
+import 'dart:convert';
 
 import '../repositories/payment_repository.dart';
 import '../models/transaction_model.dart';
+import '../utils/api_cache.dart';
+import '../utils/performance_utils.dart';
 
 class PaymentProvider with ChangeNotifier {
   final PaymentRepository _repo = PaymentRepository();
+  final ApiCache _cache = ApiCache();
+  final RequestDeduplicator _deduplicator = RequestDeduplicator();
 
   List<TransactionModel> _history = [];
   TransactionModel? _currentTransaction;
@@ -141,21 +146,65 @@ class PaymentProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> fetchAll({int page = 1, int limit = 50}) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+  Future<bool> fetchAll({int page = 1, int limit = 50, bool useCache = true}) async {
+    final cacheKey = 'payment_all_$page\_$limit';
+    
+    // Check cache first
+    if (useCache && page == 1) {
+      final cachedData = await _cache.get(cacheKey);
+      if (cachedData != null) {
+        try {
+          final List<dynamic> transactionsJson = cachedData['transactions'] ?? [];
+          _history = transactionsJson.map((json) => TransactionModel.fromJson(json)).toList();
+          notifyListeners();
+          // Load fresh data in background
+          _fetchAllInBackground(page: page, limit: limit);
+          return true;
+        } catch (e) {
+          // Cache invalid, continue to fetch
+        }
+      }
+    }
 
+    return await _deduplicator.deduplicate(cacheKey, () async {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      try {
+        PerformanceMonitor.start('fetch_all_payments');
+        _history = await _repo.getAll(page: page, limit: limit);
+        PerformanceMonitor.end('fetch_all_payments');
+
+        // Cache the response
+        if (page == 1) {
+          await _cache.put(cacheKey, {
+            'transactions': _history.map((t) => t.toJson()).toList(),
+          });
+        }
+
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } catch (e) {
+        _error = e.toString().replaceAll('Exception: ', '');
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    });
+  }
+
+  Future<void> _fetchAllInBackground({int page = 1, int limit = 50}) async {
     try {
-      _history = await _repo.getAll(page: page, limit: limit);
-      _isLoading = false;
+      final freshHistory = await _repo.getAll(page: page, limit: limit);
+      _history = freshHistory;
+      await _cache.put('payment_all_$page\_$limit', {
+        'transactions': _history.map((t) => t.toJson()).toList(),
+      });
       notifyListeners();
-      return true;
     } catch (e) {
-      _error = e.toString().replaceAll('Exception: ', '');
-      _isLoading = false;
-      notifyListeners();
-      return false;
+      // Silently fail - user already has cached data
     }
   }
 

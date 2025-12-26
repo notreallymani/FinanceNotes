@@ -21,6 +21,19 @@ class ChatConversation {
     this.transactionCreatedAt,
   });
 
+  Map<String, dynamic> toJson() {
+    return {
+      'transactionId': transactionId,
+      'lastMessage': lastMessage?.toJson(),
+      'unreadCount': unreadCount,
+      'amount': amount,
+      'status': status,
+      'senderAadhar': senderAadhar,
+      'receiverAadhar': receiverAadhar,
+      'transactionCreatedAt': transactionCreatedAt?.toIso8601String(),
+    };
+  }
+
   factory ChatConversation.fromJson(Map<String, dynamic> json) {
     return ChatConversation(
       transactionId: json['transactionId'] ?? json['transaction_id'] ?? '',

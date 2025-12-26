@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/profile_provider.dart';
 import '../../widgets/primary_button.dart';
+import '../../utils/navigation_helper.dart';
+import '../home/about_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -73,8 +75,12 @@ class DashboardScreen extends StatelessWidget {
             icon: tile['icon'] as IconData,
             color: tile['color'] as Color,
             onTap: () {
-              // Optimize: Use Hero animations for smooth transitions
-              Navigator.pushNamed(context, tile['route'] as String);
+              // Optimize: Use smooth navigation transitions
+              final route = tile['route'] as String;
+              NavigationHelper.fadeTo(
+                context,
+                _getRouteWidget(route),
+              );
             },
           );
         },
@@ -154,7 +160,7 @@ class DashboardScreen extends StatelessWidget {
                     title: 'Profile',
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.pushNamed(context, '/profile');
+                      NavigationHelper.fadeTo(context, const ProfileScreen());
                     },
                   ),
                   _buildDrawerItem(
@@ -354,42 +360,21 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  void _showAboutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'About Finance Notes',
-          style: GoogleFonts.inter(fontWeight: FontWeight.bold),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Version 1.0.0',
-              style: GoogleFonts.inter(),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'A simple and secure way to manage your payments and transactions.',
-              style: GoogleFonts.inter(color: Colors.grey[600]),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Close',
-              style: GoogleFonts.inter(
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).primaryColor,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+  Widget _getRouteWidget(String route) {
+    switch (route) {
+      case '/sendPayment':
+        return const SendPaymentScreen();
+      case '/closePayment':
+        return const ClosePaymentScreen();
+      case '/search':
+        return const SearchScreen();
+      case '/paymentHistory':
+        return const PaymentHistoryScreen();
+      case '/chats':
+        return const ChatListScreen();
+      default:
+        return const SizedBox.shrink();
+    }
   }
+
 }
