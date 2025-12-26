@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const { Storage } = require('@google-cloud/storage');
 const Transaction = require('../models/Transaction');
+const User = require('../models/User');
 const auth = require('../middleware/auth');
 const config = require('../config');
 
@@ -18,6 +19,11 @@ router.post('/send', auth, upload.array('documents'), async (req, res) => {
   try {
     const { aadhar, amount, mobile = '', interest = 0 } = req.body;
     if (!aadhar || !amount) return res.status(400).json({ message: 'Invalid request' });
+
+    // Fetch user from database to get latest Aadhaar (JWT might be stale)
+    const user = await User.findById(req.user.id);
+    const senderAadhar = (user && user.aadhar) || '';
+    console.log(`[POST /api/payment/send] User ID: ${req.user.id}, Creating payment with senderAadhar: ${senderAadhar || 'EMPTY'}`);
 
     const documents = [];
     if (Array.isArray(req.files)) {
@@ -36,13 +42,11 @@ router.post('/send', auth, upload.array('documents'), async (req, res) => {
       }
     }
 
-    const senderAadhar = req.user.aadhar || '';
-    console.log(`[POST /api/payment/send] Creating payment with senderAadhar: ${senderAadhar || 'EMPTY'}`);
     const tx = await Transaction.create({
       amount: Number(amount),
       status: 'pending',
       senderAadhar: senderAadhar,
-      senderMobile: req.user.phone || '',
+      senderMobile: (user && user.phone) || '',
       receiverAadhar: aadhar,
       mobile,
       interest: Number(interest) || 0,
@@ -218,16 +222,19 @@ router.get('/all', auth, async (req, res) => {
     const limit = Math.max(Math.min(parseInt(req.query.limit, 10) || 50, 100), 1);
     const skip = (page - 1) * limit;
 
+    // Fetch user from database to get latest Aadhaar (JWT might be stale)
+    const user = await User.findById(req.user.id);
+    const userAadhar = (user && user.aadhar) || '';
+    console.log(`[GET /api/payment/all] User ID: ${req.user.id}, Aadhaar from DB: ${userAadhar || 'EMPTY'}`);
+    
     // If the user has an Aadhaar, only return payments they CREATED
     // (senderAadhar == userAadhar). This matches the owner/financer
     // view of "all my payment requests". If Aadhaar is missing on the
     // user, do NOT fall back to an empty query (which would return all
     // transactions); instead, return an empty list so no unrelated
     // transactions are ever shown.
-    const userAadhar = (req.user && req.user.aadhar) || '';
-    console.log(`[GET /api/payment/all] User Aadhaar from JWT: ${userAadhar || 'EMPTY'}`);
     if (!userAadhar) {
-      console.log(`[GET /api/payment/all] No Aadhaar in JWT token, returning empty list`);
+      console.log(`[GET /api/payment/all] No Aadhaar in user profile, returning empty list`);
       return res.json({ transactions: [], page, limit, total: 0, hasMore: false });
     }
     const query = { senderAadhar: userAadhar };
