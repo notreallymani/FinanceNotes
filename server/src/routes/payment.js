@@ -222,11 +222,10 @@ router.get('/all', auth, async (req, res) => {
     const limit = Math.max(Math.min(parseInt(req.query.limit, 10) || 50, 100), 1);
     const skip = (page - 1) * limit;
 
-    // Fetch user from database to get latest Aadhaar and phone (JWT might be stale)
+    // Fetch user from database to get latest Aadhaar (JWT might be stale)
     const user = await User.findById(req.user.id);
     const userAadhar = (user && user.aadhar) || '';
-    const userPhone = (user && user.phone) || '';
-    console.log(`[GET /api/payment/all] User ID: ${req.user.id}, Aadhaar: ${userAadhar || 'EMPTY'}, Phone: ${userPhone || 'EMPTY'}`);
+    console.log(`[GET /api/payment/all] User ID: ${req.user.id}, Aadhaar from DB: ${userAadhar || 'EMPTY'}`);
     
     // If the user has an Aadhaar, only return payments they CREATED
     // (senderAadhar == userAadhar). This matches the owner/financer
@@ -238,50 +237,16 @@ router.get('/all', auth, async (req, res) => {
       console.log(`[GET /api/payment/all] No Aadhaar in user profile, returning empty list`);
       return res.json({ transactions: [], page, limit, total: 0, hasMore: false });
     }
-    
-    // First, try to find transactions with the correct senderAadhar
-    let query = { senderAadhar: userAadhar };
-    let [total, list] = await Promise.all([
+    const query = { senderAadhar: userAadhar };
+    console.log(`[GET /api/payment/all] Query:`, JSON.stringify(query));
+
+    const [total, list] = await Promise.all([
       Transaction.countDocuments(query),
       Transaction.find(query)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
     ]);
-
-    // If no transactions found and user has phone, check for transactions with empty senderAadhar
-    // that match the user's phone number (safer migration - only update transactions we can verify belong to this user)
-    if (total === 0 && userPhone) {
-      console.log(`[GET /api/payment/all] No transactions found with senderAadhar=${userAadhar}, checking for empty senderAadhar with phone=${userPhone}`);
-      const emptySenderQuery = { 
-        senderAadhar: { $in: ['', null] },
-        senderMobile: userPhone
-      };
-      const emptySenderCount = await Transaction.countDocuments(emptySenderQuery);
-      console.log(`[GET /api/payment/all] Found ${emptySenderCount} transactions with empty senderAadhar matching user phone`);
-      
-      // Migrate transactions with empty senderAadhar that match user's phone
-      // This ensures we only update transactions that belong to this user
-      if (emptySenderCount > 0) {
-        const updateResult = await Transaction.updateMany(
-          { 
-            senderAadhar: { $in: ['', null] },
-            senderMobile: userPhone
-          },
-          { $set: { senderAadhar: userAadhar } }
-        );
-        console.log(`[GET /api/payment/all] Migrated ${updateResult.modifiedCount} transactions to senderAadhar=${userAadhar}`);
-        
-        // Re-query with the correct senderAadhar
-        [total, list] = await Promise.all([
-          Transaction.countDocuments(query),
-          Transaction.find(query)
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limit),
-        ]);
-      }
-    }
 
     const transactions = list.map((t) => t.toJSON());
     const hasMore = skip + transactions.length < total;
