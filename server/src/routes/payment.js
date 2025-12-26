@@ -19,11 +19,6 @@ router.post('/send', auth, upload.array('documents'), async (req, res) => {
     const { aadhar, amount, mobile = '', interest = 0 } = req.body;
     if (!aadhar || !amount) return res.status(400).json({ message: 'Invalid request' });
 
-    // Require Aadhaar verification before allowing payment creation
-    if (!req.user || !req.user.aadharVerified) {
-      return res.status(403).json({ message: 'Please verify your Aadhaar before creating payment requests.' });
-    }
-
     const documents = [];
     if (Array.isArray(req.files)) {
       for (const file of req.files) {

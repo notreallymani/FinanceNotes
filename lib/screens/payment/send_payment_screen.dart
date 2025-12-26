@@ -12,6 +12,7 @@ import '../../providers/auth_provider.dart';
 import '../../widgets/primary_button.dart';
 import '../../widgets/input_field.dart';
 import '../../utils/validators.dart';
+import 'otp_verification_screen.dart';
 
 class SendPaymentScreen extends StatefulWidget {
   const SendPaymentScreen({Key? key}) : super(key: key);
@@ -31,9 +32,41 @@ class _SendPaymentScreenState extends State<SendPaymentScreen> {
   final ImagePicker _imagePicker = ImagePicker();
 
   bool _isSendingOtp = false;
-  bool _isVerifyingOtp = false;
   bool _isOtpBottomSheetShowing = false;
   List<PlatformFile> _proofFiles = [];
+  bool? _isProfileAadharVerified; // null = not checked yet, true/false = cached result
+
+  @override
+  void initState() {
+    super.initState();
+    _checkProfileVerificationOnce();
+  }
+
+  Future<void> _checkProfileVerificationOnce() async {
+    // Check only once - use cached user data first
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final cachedUser = authProvider.user;
+    
+    // If user is already verified in cache, use that (no API call)
+    if (cachedUser?.aadharVerified == true) {
+      if (mounted) {
+        setState(() {
+          _isProfileAadharVerified = true;
+        });
+      }
+      return;
+    }
+    
+    // Only fetch from backend if not verified in cache (one-time check)
+    final updatedUser = await authProvider.fetchProfile();
+    if (mounted) {
+      setState(() {
+        _isProfileAadharVerified = updatedUser?.aadharVerified ?? 
+                                   authProvider.user?.aadharVerified ?? 
+                                   false;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -85,17 +118,13 @@ class _SendPaymentScreenState extends State<SendPaymentScreen> {
 
     if (!_formKey.currentState!.validate()) return;
 
-    // Check if user's profile Aadhaar is verified
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final user = authProvider.user;
-    final isProfileAadharVerified = user?.aadharVerified ?? false;
-
-    if (!isProfileAadharVerified) {
-      // Show dialog - don't send OTP
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const ProfileNotVerifiedScreen(),
+    // Check profile Aadhaar verification - show error if not verified
+    if (_isProfileAadharVerified == false) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please verify your Aadhaar number in Profile before sending payment requests.'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 4),
         ),
       );
       return;
@@ -175,158 +204,6 @@ class _SendPaymentScreenState extends State<SendPaymentScreen> {
         ),
       ),
     );
-    return;
-    
-    // Old bottom sheet code (commented out - not executed)
-    /* showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      isDismissible: true,
-      enableDrag: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 24,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Verify OTP',
-                style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Enter the 6-digit OTP sent to the customer’s Aadhaar linked mobile number.',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
-              ),
-              const SizedBox(height: 24),
-              InputField(
-                label: 'OTP',
-                hint: 'Enter 6-digit OTP',
-                controller: _otpController,
-                validator: Validators.validateOtp,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-              ),
-              const SizedBox(height: 24),
-              Consumer<PaymentProvider>(
-                builder: (context, paymentProvider, _) {
-                  final isLoading =
-                      _isVerifyingOtp || paymentProvider.isLoading;
-                  return PrimaryButton(
-                    text: 'Verify & Submit',
-                    onPressed: isLoading
-                        ? null
-                        : () => _verifyOtpAndSubmit(
-                              aadhar: aadhar,
-                              amount: amount,
-                              mobile: mobile,
-                              interest: interest,
-                            ),
-                    isLoading: isLoading,
-                  );
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    ).whenComplete(() {
-      // Reset flag when bottom sheet is dismissed
-      if (mounted) {
-        setState(() {
-          _isOtpBottomSheetShowing = false;
-        });
-      }
-    });
-  }
-
-  Future<void> _verifyOtpAndSubmit({
-    required String aadhar,
-    required double amount,
-    String? mobile,
-    double? interest,
-  }) async {
-    // Prevent multiple clicks
-    if (_isVerifyingOtp) {
-      return;
-    }
-
-    final otp = _otpController.text.trim();
-    if (otp.length != 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid 6-digit OTP'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    setState(() {
-      _isVerifyingOtp = true;
-    });
-
-    try {
-      await _aadharApi.verifyAadharOtp(aadhar, otp);
-      final paymentProvider =
-          Provider.of<PaymentProvider>(context, listen: false);
-      final success = await paymentProvider.sendPayment(
-        aadhar: aadhar,
-        amount: amount,
-        mobile: mobile,
-        interest: interest,
-        proofFiles: _proofFiles,
-      );
-
-      if (!mounted) return;
-
-      if (success) {
-        _isOtpBottomSheetShowing = false;
-        Navigator.of(context).pop(); // Close OTP sheet
-        Navigator.pushReplacementNamed(
-          context,
-          '/paymentSuccess',
-          arguments: paymentProvider.currentTransaction,
-        );
-        _otpController.clear();
-        _proofFiles = [];
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(paymentProvider.error ?? 'Payment request failed'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isVerifyingOtp = false;
-        });
-      }
-    }
   }
 
   Widget _buildProofFilesList() {
@@ -394,7 +271,16 @@ class _SendPaymentScreenState extends State<SendPaymentScreen> {
                   label: 'Amount',
                   hint: 'Enter amount',
                   controller: _amountController,
-                  validator: Validators.validateAmount,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Amount is required';
+                    }
+                    final amount = double.tryParse(value);
+                    if (amount == null) {
+                      return 'Invalid amount';
+                    }
+                    return Validators.validateAmount(amount);
+                  },
                   keyboardType: TextInputType.numberWithOptions(decimal: true),
                 ),
                 const SizedBox(height: 20),
@@ -463,9 +349,11 @@ class _SendPaymentScreenState extends State<SendPaymentScreen> {
                   builder: (context, paymentProvider, _) {
                     final isLoading =
                         paymentProvider.isLoading || _isSendingOtp;
+                    // Disable button if profile Aadhaar is not verified
+                    final isButtonDisabled = isLoading || _isProfileAadharVerified == false;
                     return PrimaryButton(
                       text: 'Send Payment Request',
-                      onPressed: isLoading ? null : _handleSendPayment,
+                      onPressed: isButtonDisabled ? null : _handleSendPayment,
                       isLoading: isLoading,
                     );
                   },
