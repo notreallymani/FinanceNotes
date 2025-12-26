@@ -36,16 +36,19 @@ router.post('/send', auth, upload.array('documents'), async (req, res) => {
       }
     }
 
+    const senderAadhar = req.user.aadhar || '';
+    console.log(`[POST /api/payment/send] Creating payment with senderAadhar: ${senderAadhar || 'EMPTY'}`);
     const tx = await Transaction.create({
       amount: Number(amount),
       status: 'pending',
-      senderAadhar: req.user.aadhar || '',
+      senderAadhar: senderAadhar,
       senderMobile: req.user.phone || '',
       receiverAadhar: aadhar,
       mobile,
       interest: Number(interest) || 0,
       documents,
     });
+    console.log(`[POST /api/payment/send] Payment created with ID: ${tx.id}, senderAadhar: ${tx.senderAadhar}`);
     return res.json({ transaction: tx.toJSON() });
   } catch (e) {
     return res.status(500).json({ message: 'Server error' });
@@ -222,10 +225,13 @@ router.get('/all', auth, async (req, res) => {
     // transactions); instead, return an empty list so no unrelated
     // transactions are ever shown.
     const userAadhar = (req.user && req.user.aadhar) || '';
+    console.log(`[GET /api/payment/all] User Aadhaar from JWT: ${userAadhar || 'EMPTY'}`);
     if (!userAadhar) {
+      console.log(`[GET /api/payment/all] No Aadhaar in JWT token, returning empty list`);
       return res.json({ transactions: [], page, limit, total: 0, hasMore: false });
     }
     const query = { senderAadhar: userAadhar };
+    console.log(`[GET /api/payment/all] Query:`, JSON.stringify(query));
 
     const [total, list] = await Promise.all([
       Transaction.countDocuments(query),
@@ -237,6 +243,8 @@ router.get('/all', auth, async (req, res) => {
 
     const transactions = list.map((t) => t.toJSON());
     const hasMore = skip + transactions.length < total;
+
+    console.log(`[GET /api/payment/all] Found ${transactions.length} transactions (total: ${total})`);
 
     return res.json({
       transactions,
