@@ -7,9 +7,12 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:permission_handler/permission_handler.dart';
+import '../api/payment_api.dart';
 
 class DocumentService {
-  /// Download document from URL
+  final PaymentApi _paymentApi = PaymentApi();
+
+  /// Download document from URL (gets signed URL first if needed)
   Future<File?> downloadDocument({
     required String url,
     required String filename,
@@ -20,15 +23,29 @@ class DocumentService {
         throw Exception('Document URL is empty');
       }
 
+      // Get signed URL from backend for GCS files
+      String downloadUrl = url;
+      try {
+        // Check if this is a GCS URL
+        final uri = Uri.parse(url);
+        if (uri.hostname == 'storage.googleapis.com') {
+          // Get signed URL from backend
+          downloadUrl = await _paymentApi.getDocumentDownloadUrl(url);
+        }
+      } catch (e) {
+        // If getting signed URL fails, try using original URL
+        // (might be a public URL or already signed)
+      }
+
       // Validate URL format
       Uri? uri;
       try {
-        uri = Uri.parse(url);
+        uri = Uri.parse(downloadUrl);
         if (!uri.hasScheme || (!uri.scheme.startsWith('http'))) {
           throw Exception('Invalid URL format');
         }
       } catch (e) {
-        throw Exception('Invalid document URL: $url');
+        throw Exception('Invalid document URL: $downloadUrl');
       }
 
       // Request storage permission (Android 13+ uses different permissions)

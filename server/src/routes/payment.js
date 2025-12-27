@@ -268,4 +268,72 @@ router.get('/all', auth, async (req, res) => {
   }
 });
 
+// Generate signed URL for downloading a document
+router.get('/document-download-url', auth, async (req, res) => {
+  try {
+    const { url } = req.query;
+    if (!url) {
+      return res.status(400).json({ message: 'Document URL is required' });
+    }
+
+    // Extract file path from GCS URL
+    // URL format: https://storage.googleapis.com/bucket-name/path/to/file
+    let filePath;
+    try {
+      const urlObj = new URL(url);
+      if (urlObj.hostname === 'storage.googleapis.com') {
+        // Extract path after bucket name
+        // pathname format: /bucket-name/path/to/file (URL constructor already decodes)
+        const pathParts = urlObj.pathname.split('/').filter(p => p.length > 0);
+        if (pathParts.length > 1) {
+          // Remove bucket name (first part), keep the rest as file path
+          filePath = pathParts.slice(1).join('/');
+        } else {
+          return res.status(400).json({ message: 'Invalid GCS URL format' });
+        }
+      } else {
+        return res.status(400).json({ message: 'Invalid storage URL' });
+      }
+    } catch (e) {
+      return res.status(400).json({ message: 'Invalid URL format' });
+    }
+
+    // Verify the file belongs to a transaction the user has access to
+    const user = await User.findById(req.user.id);
+    const userAadhar = (user && user.aadhar) || '';
+    
+    const tx = await Transaction.findOne({
+      $or: [
+        { senderAadhar: userAadhar },
+        { receiverAadhar: userAadhar }
+      ],
+      'documents.url': url
+    });
+
+    if (!tx) {
+      return res.status(403).json({ message: 'Access denied to this document' });
+    }
+
+    // Get file from bucket
+    const file = bucket.file(filePath);
+    
+    // Check if file exists
+    const [exists] = await file.exists();
+    if (!exists) {
+      return res.status(404).json({ message: 'File not found' });
+    }
+
+    // Generate signed URL (valid for 1 hour)
+    const [signedUrl] = await file.getSignedUrl({
+      action: 'read',
+      expires: Date.now() + 60 * 60 * 1000, // 1 hour
+    });
+
+    return res.json({ url: signedUrl });
+  } catch (e) {
+    console.error('[GET /api/payment/document-download-url] Error:', e);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router;

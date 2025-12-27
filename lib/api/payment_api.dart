@@ -144,6 +144,20 @@ class PaymentApi {
     }
   }
 
+  Future<String> getDocumentDownloadUrl(String documentUrl) async {
+    try {
+      final response = await _dio.get(
+        AppConstants.documentDownloadUrlEndpoint,
+        queryParameters: {
+          'url': documentUrl,
+        },
+      );
+      return response.data['url'] as String;
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
   Exception _handleError(dynamic error) {
     if (error is DioException) {
       if (error.response != null) {

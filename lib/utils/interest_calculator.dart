@@ -34,16 +34,13 @@ class InterestCalculation {
 }
 
 class InterestCalculator {
-  /// Calculate interest from transaction creation to today (or closed date)
+  /// Calculate simple interest from transaction creation to today (or closed date)
   /// 
-  /// Interest can be:
-  /// - Percentage (e.g., 2.5% per month or per year)
-  /// - Fixed amount (e.g., ₹1000)
-  /// 
-  /// We'll treat interest > 100 as fixed amount, <= 100 as percentage
+  /// Interest is calculated as a percentage per month (30 days)
+  /// Simple formula: (Principal × Rate × Days) / (100 × 30)
   static InterestCalculation calculateInterest({
     required double principal,
-    required double interest, // Interest rate or fixed amount
+    required double interest, // Interest rate as percentage per month
     required DateTime createdAt,
     DateTime? closedAt,
   }) {
@@ -53,33 +50,17 @@ class InterestCalculator {
     // Calculate days difference
     final days = endDate.difference(startDate).inDays;
     
-    // Determine if interest is percentage or fixed amount
-    // If interest > 100, treat as fixed amount; otherwise as percentage
-    final isPercentage = interest <= 100;
-    
-    double totalInterest;
-    double dailyInterest;
-    
-    if (isPercentage) {
-      // Treat as percentage per month (30 days)
-      // Formula: (Principal × Rate × Days) / (100 × 30)
-      final monthlyRate = interest;
-      dailyInterest = (principal * monthlyRate) / (100 * 30);
-      totalInterest = dailyInterest * days;
-    } else {
-      // Treat as fixed amount per month (30 days)
-      // Calculate daily rate: fixedAmount / 30
-      // Then multiply by days
-      final monthlyFixed = interest;
-      dailyInterest = monthlyFixed / 30;
-      totalInterest = dailyInterest * days;
-    }
+    // Simple interest calculation: percentage per month (30 days)
+    // Formula: (Principal × Rate × Days) / (100 × 30)
+    final monthlyRate = interest;
+    final dailyInterest = (principal * monthlyRate) / (100 * 30);
+    final totalInterest = dailyInterest * days;
     
     // Ensure interest is not negative
-    if (totalInterest < 0) totalInterest = 0;
-    if (dailyInterest < 0) dailyInterest = 0;
+    final safeTotalInterest = totalInterest < 0 ? 0.0 : totalInterest;
+    final safeDailyInterest = dailyInterest < 0 ? 0.0 : dailyInterest;
     
-    final totalAmount = principal + totalInterest;
+    final totalAmount = principal + safeTotalInterest;
     
     return InterestCalculation(
       principal: principal,
@@ -87,10 +68,10 @@ class InterestCalculator {
       startDate: startDate,
       endDate: endDate,
       days: days,
-      dailyInterest: dailyInterest,
-      totalInterest: totalInterest,
+      dailyInterest: safeDailyInterest,
+      totalInterest: safeTotalInterest,
       totalAmount: totalAmount,
-      isPercentage: isPercentage,
+      isPercentage: true, // Always percentage
     );
   }
   

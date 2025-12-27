@@ -18,6 +18,7 @@ class AppConstants {
   static const String unreadCountEndpoint = '/api/chat/unread-count';
   static const String customerCloseSendOtpEndpoint = '/api/payment/customer-close/send-otp';
   static const String customerCloseVerifyOtpEndpoint = '/api/payment/customer-close/verify';
+  static const String documentDownloadUrlEndpoint = '/api/payment/document-download-url';
 
   // Storage Keys
   static const String tokenKey = 'auth_token';
