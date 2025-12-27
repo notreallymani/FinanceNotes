@@ -30,17 +30,105 @@ class DashboardScreen extends StatelessWidget {
         elevation: 0,
       ),
       drawer: _buildDrawer(context),
-      body: GridView.builder(
-        // Optimize: Use builder for better performance
-        padding: const EdgeInsets.all(16),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: 1.0, // Changed from 1.1 to 1.0 for more vertical space
-        ),
-        itemCount: 5,
-        itemBuilder: (context, index) {
+      body: Column(
+        children: [
+          // Aadhaar Verification Banner
+          Consumer<AuthProvider>(
+            builder: (context, authProvider, _) {
+              final isAadharVerified = authProvider.user?.aadharVerified ?? false;
+              if (isAadharVerified) {
+                return const SizedBox.shrink(); // Don't show banner if verified
+              }
+              return Container(
+                width: double.infinity,
+                margin: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orange[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.orange[300]!,
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.verified_user_outlined,
+                      color: Colors.orange[700],
+                      size: 28,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Verify Your Aadhaar',
+                            style: GoogleFonts.inter(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.orange[900],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Complete Aadhaar verification to send payment requests',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              color: Colors.orange[800],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ProfileScreen(),
+                          ),
+                        );
+                        // Refresh user data when returning from profile
+                        if (context.mounted) {
+                          final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                          await authProvider.fetchProfile();
+                        }
+                      },
+                      icon: const Icon(Icons.arrow_forward, size: 18),
+                      label: const Text('Verify'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange[600],
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          // Dashboard Grid
+          Expanded(
+            child: GridView.builder(
+              // Optimize: Use builder for better performance
+              padding: const EdgeInsets.all(16),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 1.0, // Changed from 1.1 to 1.0 for more vertical space
+              ),
+              itemCount: 5,
+              itemBuilder: (context, index) {
           final tiles = [
             {
               'title': 'Send Payment',
@@ -89,6 +177,9 @@ class DashboardScreen extends StatelessWidget {
             },
           );
         },
+            ),
+          ),
+        ],
       ),
     );
   }

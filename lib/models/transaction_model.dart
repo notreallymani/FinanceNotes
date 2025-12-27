@@ -9,6 +9,7 @@ class TransactionModel {
   final String? mobile;
   final String? senderMobile;
   final double interest;
+  final String? customerName;
   final List<TransactionDocument> documents;
 
   TransactionModel({
@@ -22,6 +23,7 @@ class TransactionModel {
     this.closedAt,
     this.mobile,
     this.senderMobile,
+    this.customerName,
     this.documents = const [],
   });
 
@@ -46,6 +48,7 @@ class TransactionModel {
           : null,
       mobile: json['mobile'] ?? json['receiverMobile'],
       senderMobile: json['senderMobile'] ?? json['sender_mobile'],
+      customerName: json['customerName'] ?? json['customer_name'],
       documents: documents,
     );
   }
@@ -62,6 +65,7 @@ class TransactionModel {
       'mobile': mobile,
       'senderMobile': senderMobile,
       'interest': interest,
+      'customerName': customerName,
       'documents': documents.map((doc) => doc.toJson()).toList(),
     };
   }

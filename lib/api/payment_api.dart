@@ -10,6 +10,7 @@ class PaymentApi {
   Future<TransactionModel> sendPayment({
     required String aadhar,
     required double amount,
+    required String customerName,
     String? mobile,
     double? interest,
     List<MultipartFile>? documents,
@@ -20,6 +21,7 @@ class PaymentApi {
       final formData = FormData.fromMap({
         'aadhar': aadhar,
         'amount': amount,
+        'customerName': customerName,
         if (mobile != null) 'mobile': mobile,
         if (interest != null) 'interest': interest,
       });

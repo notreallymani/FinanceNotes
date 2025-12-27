@@ -17,8 +17,10 @@ const bucket = storage.bucket(config.gcpStorageBucket);
 
 router.post('/send', auth, upload.array('documents'), async (req, res) => {
   try {
-    const { aadhar, amount, mobile = '', interest = 0 } = req.body;
-    if (!aadhar || !amount) return res.status(400).json({ message: 'Invalid request' });
+    const { aadhar, amount, customerName, mobile = '', interest = 0 } = req.body;
+    if (!aadhar || !amount || !customerName) {
+      return res.status(400).json({ message: 'Invalid request: aadhar, amount, and customerName are required' });
+    }
 
     // Fetch user from database to get latest Aadhaar (JWT might be stale)
     const user = await User.findById(req.user.id);
@@ -50,6 +52,7 @@ router.post('/send', auth, upload.array('documents'), async (req, res) => {
       receiverAadhar: aadhar,
       mobile,
       interest: Number(interest) || 0,
+      customerName: customerName.trim(),
       documents,
     });
     console.log(`[POST /api/payment/send] Payment created with ID: ${tx.id}, senderAadhar: ${tx.senderAadhar}`);

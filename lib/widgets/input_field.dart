@@ -15,6 +15,7 @@ class InputField extends StatelessWidget {
   final void Function(String)? onChanged;
   final TextAlign? textAlign;
   final TextStyle? style;
+  final TextCapitalization textCapitalization;
 
   const InputField({
     super.key,
@@ -31,6 +32,7 @@ class InputField extends StatelessWidget {
     this.onChanged,
     this.textAlign,
     this.style,
+    this.textCapitalization = TextCapitalization.none,
   });
 
   @override
@@ -56,6 +58,7 @@ class InputField extends StatelessWidget {
           enabled: enabled,
           onChanged: onChanged,
           textAlign: textAlign ?? TextAlign.start,
+          textCapitalization: textCapitalization,
           style: style ?? GoogleFonts.inter(
             fontSize: 16,
             color: Colors.grey[900],

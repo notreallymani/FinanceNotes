@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/transaction_model.dart';
 import '../../services/document_service.dart';
+import '../../utils/interest_calculator.dart';
 
 class TransactionDetailScreen extends StatelessWidget {
   final TransactionModel transaction;
@@ -38,6 +39,10 @@ class TransactionDetailScreen extends StatelessWidget {
               const SizedBox(height: 24),
               _buildAmountCard(context),
               const SizedBox(height: 16),
+              if (transaction.interest > 0) ...[
+                _buildInterestCalculationSection(context),
+                const SizedBox(height: 16),
+              ],
               _buildInfoSection(context),
               const SizedBox(height: 16),
               _buildMobileSection(context),
@@ -117,6 +122,265 @@ class TransactionDetailScreen extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildInterestCalculationSection(BuildContext context) {
+    final calculation = InterestCalculator.calculateInterest(
+      principal: transaction.amount,
+      interest: transaction.interest,
+      createdAt: transaction.createdAt,
+      closedAt: transaction.closedAt,
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.purple[50]!,
+            Colors.purple[100]!,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.purple[200]!, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.purple.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.purple[600],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.calculate,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Interest Calculation',
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.purple[900],
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'From ${calculation.formattedStartDate} to ${calculation.formattedEndDate}',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: Colors.purple[700],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          
+          // Calculation Details
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                // Principal Amount
+                _buildCalculationRow(
+                  label: 'Principal Amount',
+                  value: InterestCalculator.formatCurrency(calculation.principal),
+                  icon: Icons.account_balance_wallet,
+                  iconColor: Colors.blue,
+                ),
+                const Divider(height: 24),
+                
+                // Interest Rate/Amount
+                _buildCalculationRow(
+                  label: calculation.isPercentage 
+                      ? 'Interest Rate (per month)'
+                      : 'Interest Amount (per month)',
+                  value: calculation.isPercentage
+                      ? InterestCalculator.formatPercentage(calculation.interestRate)
+                      : InterestCalculator.formatCurrency(calculation.interestRate),
+                  icon: Icons.percent,
+                  iconColor: Colors.orange,
+                ),
+                const Divider(height: 24),
+                
+                // Period
+                _buildCalculationRow(
+                  label: 'Calculation Period',
+                  value: calculation.formattedPeriod,
+                  icon: Icons.calendar_today,
+                  iconColor: Colors.green,
+                ),
+                const Divider(height: 24),
+                
+                // Daily Interest
+                _buildCalculationRow(
+                  label: 'Daily Interest',
+                  value: InterestCalculator.formatCurrency(calculation.dailyInterest),
+                  icon: Icons.today,
+                  iconColor: Colors.teal,
+                ),
+                const Divider(height: 24),
+                
+                // Total Interest Accrued
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange[200]!),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.trending_up, color: Colors.orange[700], size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Total Interest Accrued',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.orange[900],
+                          ),
+                        ),
+                      ),
+                      Text(
+                        InterestCalculator.formatCurrency(calculation.totalInterest),
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.orange[900],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Total Amount
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.purple[600]!,
+                        Colors.purple[700]!,
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.purple.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Total Amount',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              color: Colors.white.withOpacity(0.9),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Principal + Interest',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: Colors.white.withOpacity(0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        InterestCalculator.formatCurrency(calculation.totalAmount),
+                        style: GoogleFonts.inter(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCalculationRow({
+    required String label,
+    required String value,
+    required IconData icon,
+    required Color iconColor,
+  }) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: iconColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: iconColor, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color: Colors.grey[700],
+            ),
+          ),
+        ),
+        Text(
+          value,
+          style: GoogleFonts.inter(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[900],
+          ),
+        ),
+      ],
     );
   }
 
@@ -479,26 +743,36 @@ class TransactionDetailScreen extends StatelessWidget {
   }
 
   Future<void> _downloadDocument(BuildContext context, TransactionDocument document) async {
-    try {
-      if (!context.mounted) return;
+    if (!context.mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
+    // Show loading indicator
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
               ),
-              const SizedBox(width: 12),
-              Text('Downloading ${document.filename}...'),
-            ],
-          ),
-          duration: const Duration(seconds: 2),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Downloading ${document.filename}...',
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
         ),
-      );
+        duration: const Duration(seconds: 30), // Longer duration for download
+        backgroundColor: Colors.blue,
+      ),
+    );
 
+    try {
       final documentService = DocumentService();
       final file = await documentService.downloadDocument(
         url: document.url,
@@ -507,23 +781,93 @@ class TransactionDetailScreen extends StatelessWidget {
 
       if (!context.mounted) return;
 
+      // Hide loading snackbar
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      if (file != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Downloaded: ${document.filename}',
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Saved to Downloads folder',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'OK',
+              textColor: Colors.white,
+              onPressed: () {},
+            ),
+          ),
+        );
+      } else {
+        throw Exception('File download returned null');
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      
+      // Hide loading snackbar
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      // Show error message
+      String errorMessage = 'Download failed';
+      final errorString = e.toString().replaceAll('Exception: ', '');
+      
+      if (errorString.contains('permission')) {
+        errorMessage = 'Permission denied. Please grant storage permission in app settings.';
+      } else if (errorString.contains('timeout')) {
+        errorMessage = 'Download timeout. Please check your internet connection.';
+      } else if (errorString.contains('HTTP') || errorString.contains('status')) {
+        errorMessage = 'File not available. The document may have been removed.';
+      } else if (errorString.contains('empty')) {
+        errorMessage = 'Downloaded file is empty. Please try again.';
+      } else {
+        errorMessage = 'Download failed: ${errorString.length > 100 ? errorString.substring(0, 100) + "..." : errorString}';
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Downloaded to: ${file?.path}'),
-          backgroundColor: Colors.green,
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  errorMessage,
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
           action: SnackBarAction(
             label: 'OK',
             textColor: Colors.white,
             onPressed: () {},
           ),
-        ),
-      );
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Download failed: ${e.toString()}'),
-          backgroundColor: Colors.red,
         ),
       );
     }

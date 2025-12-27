@@ -380,6 +380,17 @@ class _ClosePaymentScreenState extends State<ClosePaymentScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (t.customerName != null && t.customerName!.isNotEmpty) ...[
+                    Text(
+                      t.customerName!,
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[900],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                  ],
                   Text(
                     '₹${t.amount.toStringAsFixed(2)}',
                     style: GoogleFonts.inter(
@@ -468,6 +479,17 @@ class _ClosePaymentScreenState extends State<ClosePaymentScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (t.customerName != null && t.customerName!.isNotEmpty) ...[
+                    Text(
+                      t.customerName!,
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[900],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                  ],
                   Text(
                     '₹${t.amount.toStringAsFixed(2)}',
                     style: GoogleFonts.inter(

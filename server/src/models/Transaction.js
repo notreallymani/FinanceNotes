@@ -9,6 +9,7 @@ const TransactionSchema = new mongoose.Schema(
     receiverAadhar: { type: String, default: '' },
     mobile: { type: String, default: '' },
     interest: { type: Number, default: 0 },
+    customerName: { type: String, default: '' },
     documents: [
       {
         filename: { type: String },

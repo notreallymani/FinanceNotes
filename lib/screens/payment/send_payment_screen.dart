@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'package:path/path.dart' as p;
 
 import '../../api/aadhar_api.dart';
 import '../../providers/payment_provider.dart';
@@ -12,10 +11,11 @@ import '../../providers/auth_provider.dart';
 import '../../widgets/primary_button.dart';
 import '../../widgets/input_field.dart';
 import '../../utils/validators.dart';
+import '../profile/profile_screen.dart';
 import 'otp_verification_screen.dart';
 
 class SendPaymentScreen extends StatefulWidget {
-  const SendPaymentScreen({Key? key}) : super(key: key);
+  const SendPaymentScreen({super.key});
 
   @override
   State<SendPaymentScreen> createState() => _SendPaymentScreenState();
@@ -23,6 +23,7 @@ class SendPaymentScreen extends StatefulWidget {
 
 class _SendPaymentScreenState extends State<SendPaymentScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _customerNameController = TextEditingController();
   final _aadharController = TextEditingController();
   final _amountController = TextEditingController();
   final _mobileController = TextEditingController();
@@ -70,6 +71,7 @@ class _SendPaymentScreenState extends State<SendPaymentScreen> {
 
   @override
   void dispose() {
+    _customerNameController.dispose();
     _aadharController.dispose();
     _amountController.dispose();
     _mobileController.dispose();
@@ -97,7 +99,7 @@ class _SendPaymentScreenState extends State<SendPaymentScreen> {
     );
     if (photo != null) {
       final file = File(photo.path);
-      final fileName = p.basename(photo.path);
+      final fileName = photo.name.isNotEmpty ? photo.name : 'photo_${DateTime.now().millisecondsSinceEpoch}.jpg';
       setState(() {
         _proofFiles.add(
           PlatformFile(
@@ -162,6 +164,7 @@ class _SendPaymentScreenState extends State<SendPaymentScreen> {
         _showOtpBottomSheet(
           aadhar: aadhar,
           amount: amount,
+          customerName: _customerNameController.text.trim(),
           mobile: _mobileController.text.trim().isNotEmpty
               ? _mobileController.text.trim()
               : null,
@@ -188,6 +191,7 @@ class _SendPaymentScreenState extends State<SendPaymentScreen> {
   void _showOtpBottomSheet({
     required String aadhar,
     required double amount,
+    required String customerName,
     String? mobile,
     double? interest,
   }) {
@@ -198,6 +202,7 @@ class _SendPaymentScreenState extends State<SendPaymentScreen> {
         builder: (context) => OtpVerificationScreen(
           aadhar: aadhar,
           amount: amount,
+          customerName: customerName,
           mobile: mobile,
           interest: interest,
           proofFiles: _proofFiles,
@@ -257,6 +262,22 @@ class _SendPaymentScreenState extends State<SendPaymentScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const SizedBox(height: 20),
+                InputField(
+                  label: 'Customer Name',
+                  hint: 'Enter customer name',
+                  controller: _customerNameController,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Customer name is required';
+                    }
+                    if (value.trim().length < 2) {
+                      return 'Name must be at least 2 characters';
+                    }
+                    return null;
+                  },
+                  textCapitalization: TextCapitalization.words,
+                ),
                 const SizedBox(height: 20),
                 InputField(
                   label: 'Receiver Aadhaar Number',
@@ -345,16 +366,110 @@ class _SendPaymentScreenState extends State<SendPaymentScreen> {
                 const SizedBox(height: 12),
                 _buildProofFilesList(),
                 const SizedBox(height: 32),
+                // Profile Aadhaar Verification Warning Banner
+                if (_isProfileAadharVerified == false)
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.orange[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.orange[300]!,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: Colors.orange[700],
+                              size: 24,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Profile Aadhaar Not Verified',
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.orange[900],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'To enable "Send Payment Request" button, please verify your Aadhaar number in Profile first.',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            color: Colors.orange[800],
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const ProfileScreen(),
+                                ),
+                              );
+                              // Refresh verification status when returning from profile
+                              if (mounted) {
+                                _checkProfileVerificationOnce();
+                              }
+                            },
+                            icon: const Icon(Icons.person, size: 18),
+                            label: const Text('Go to Profile & Verify'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange[600],
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 Consumer<PaymentProvider>(
                   builder: (context, paymentProvider, _) {
                     final isLoading =
                         paymentProvider.isLoading || _isSendingOtp;
                     // Disable button if profile Aadhaar is not verified
                     final isButtonDisabled = isLoading || _isProfileAadharVerified == false;
-                    return PrimaryButton(
-                      text: 'Send Payment Request',
-                      onPressed: isButtonDisabled ? null : _handleSendPayment,
-                      isLoading: isLoading,
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        PrimaryButton(
+                          text: 'Send Payment Request',
+                          onPressed: isButtonDisabled ? null : _handleSendPayment,
+                          isLoading: isLoading,
+                        ),
+                        if (isButtonDisabled && !isLoading)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(
+                              'Button disabled: Profile Aadhaar verification required',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                      ],
                     );
                   },
                 ),

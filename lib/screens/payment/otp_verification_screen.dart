@@ -16,6 +16,7 @@ import 'package:file_picker/file_picker.dart';
 class OtpVerificationScreen extends StatefulWidget {
   final String aadhar;
   final double amount;
+  final String customerName;
   final String? mobile;
   final double? interest;
   final List<PlatformFile>? proofFiles;
@@ -24,6 +25,7 @@ class OtpVerificationScreen extends StatefulWidget {
     Key? key,
     required this.aadhar,
     required this.amount,
+    required this.customerName,
     this.mobile,
     this.interest,
     this.proofFiles,
@@ -61,6 +63,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       final success = await paymentProvider.sendPayment(
         aadhar: widget.aadhar,
         amount: widget.amount,
+        customerName: widget.customerName,
         mobile: widget.mobile,
         interest: widget.interest,
         proofFiles: widget.proofFiles,
@@ -176,6 +179,15 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
+                        'Customer: ${widget.customerName}',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[900],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
                         'Amount: ₹${widget.amount.toStringAsFixed(2)}',
                         style: GoogleFonts.inter(
                           fontSize: 16,
@@ -183,6 +195,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                           color: Colors.grey[900],
                         ),
                       ),
+                      const SizedBox(height: 4),
                       Text(
                         'Aadhaar: ${_maskAadhar(widget.aadhar)}',
                         style: GoogleFonts.inter(

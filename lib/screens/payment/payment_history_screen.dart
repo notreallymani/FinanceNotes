@@ -215,6 +215,17 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (transaction.customerName != null && transaction.customerName!.isNotEmpty) ...[
+                      Text(
+                        transaction.customerName!,
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[900],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                    ],
                     Text(
                       '₹${transaction.amount.toStringAsFixed(2)}',
                       style: GoogleFonts.inter(

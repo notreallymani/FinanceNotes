@@ -26,6 +26,7 @@ class PaymentRepository {
   Future<TransactionModel> sendPayment({
     required String aadhar,
     required double amount,
+    required String customerName,
     String? mobile,
     double? interest,
     List<MultipartFile>? documents,
@@ -34,6 +35,7 @@ class PaymentRepository {
     final transaction = await _api.sendPayment(
       aadhar: aadhar,
       amount: amount,
+      customerName: customerName,
       mobile: mobile,
       interest: interest,
       documents: documents,
