@@ -10,7 +10,6 @@ import '../../providers/auth_provider.dart';
 import '../../widgets/primary_button.dart';
 import '../../widgets/input_field.dart';
 import '../../utils/validators.dart';
-import '../../utils/navigation_helper.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({Key? key}) : super(key: key);

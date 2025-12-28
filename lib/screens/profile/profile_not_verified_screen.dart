@@ -5,7 +5,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../utils/navigation_helper.dart';
 
 class ProfileNotVerifiedScreen extends StatelessWidget {
   const ProfileNotVerifiedScreen({Key? key}) : super(key: key);

@@ -189,8 +189,9 @@ router.get('/history', auth, async (req, res) => {
     const limit = Math.max(Math.min(parseInt(req.query.limit, 10) || 50, 100), 1);
     const skip = (page - 1) * limit;
 
+    // Only search by receiverAadhar (customer Aadhaar)
     const query = {
-      $or: [{ senderAadhar: aadhar }, { receiverAadhar: aadhar }],
+      receiverAadhar: aadhar,
     };
 
     const [total, list] = await Promise.all([

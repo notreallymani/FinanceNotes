@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
+import '../../utils/time_utils.dart';
 import 'package:provider/provider.dart';
 import '../../models/transaction_model.dart';
 import '../../providers/payment_provider.dart';
@@ -89,7 +89,6 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
       body: SafeArea(
         child: Consumer2<AuthProvider, PaymentProvider>(
           builder: (context, authProvider, paymentProvider, _) {
-            final userAadhar = authProvider.user?.aadhar ?? '';
             // Always show all transactions provided by the backend (either
             // from the provider history or injected from Search), and simply
             // sort them by most recent first. Any ownership filtering should
@@ -245,8 +244,8 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                     const SizedBox(height: 4),
                     Text(
                       transaction.status.toLowerCase() == 'closed' && transaction.closedAt != null
-                          ? 'Closed: ${DateFormat('dd MMM yyyy, hh:mm a').format(transaction.closedAt!)}'
-                          : 'Created: ${DateFormat('dd MMM yyyy, hh:mm a').format(transaction.createdAt)}',
+                          ? 'Closed: ${TimeUtils.formatIST(transaction.closedAt!)}'
+                          : 'Created: ${TimeUtils.formatIST(transaction.createdAt)}',
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         color: transaction.status.toLowerCase() == 'closed' 

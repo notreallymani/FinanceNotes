@@ -7,34 +7,57 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:open_file/open_file.dart';
+import 'package:share_plus/share_plus.dart';
 import '../api/payment_api.dart';
+import 'notification_service.dart';
 
 class DocumentService {
   final PaymentApi _paymentApi = PaymentApi();
+  final NotificationService _notificationService = NotificationService();
 
   /// Download document from URL (gets signed URL first if needed)
+  /// Shows notifications for download progress and completion
   Future<File?> downloadDocument({
     required String url,
     required String filename,
   }) async {
+    // Generate unique notification ID based on filename hash
+    final notificationId = filename.hashCode.abs() % 2147483647;
+    
     try {
+      // Initialize notification service
+      await _notificationService.initialize();
+
       // Validate URL
       if (url.isEmpty) {
         throw Exception('Document URL is empty');
       }
 
+      // Sanitize filename
+      final sanitizedFilename = _sanitizeFilename(filename);
+
+      // Show download started notification
+      await _notificationService.showDownloadStarted(sanitizedFilename, notificationId);
+
       // Get signed URL from backend for GCS files
       String downloadUrl = url;
+      
+      // Check if this is a GCS URL
       try {
-        // Check if this is a GCS URL
         final uri = Uri.parse(url);
-        if (uri.hostname == 'storage.googleapis.com') {
-          // Get signed URL from backend
+        if (uri.host == 'storage.googleapis.com') {
+          // Get signed URL from backend - required for private buckets
           downloadUrl = await _paymentApi.getDocumentDownloadUrl(url);
         }
       } catch (e) {
-        // If getting signed URL fails, try using original URL
-        // (might be a public URL or already signed)
+        // If URL parsing fails, throw error
+        if (e.toString().contains('FormatException') || e.toString().contains('Invalid')) {
+          await _notificationService.showDownloadFailed(sanitizedFilename, 'Invalid URL format', notificationId);
+          throw Exception('Invalid document URL format');
+        }
+        // If getting signed URL fails, throw the error to be handled by outer catch
+        rethrow;
       }
 
       // Validate URL format
@@ -45,6 +68,7 @@ class DocumentService {
           throw Exception('Invalid URL format');
         }
       } catch (e) {
+        await _notificationService.showDownloadFailed(sanitizedFilename, 'Invalid URL format', notificationId);
         throw Exception('Invalid document URL: $downloadUrl');
       }
 
@@ -64,6 +88,7 @@ class DocumentService {
                 // Use app-specific directory which doesn't require special permissions
                 // This will work without manageExternalStorage
               } else {
+                await _notificationService.showDownloadFailed(sanitizedFilename, 'Storage permission denied', notificationId);
                 throw Exception('Storage permission denied. Please grant storage permission in app settings.');
               }
             }
@@ -71,21 +96,15 @@ class DocumentService {
         }
       }
 
-      // Get download directory - use app-specific directory for better compatibility
-      // This works without special permissions on all Android versions
+      // Get download directory - prefer app-specific directory for compatibility
       final directory = await getApplicationDocumentsDirectory();
-
-      // Create downloads subdirectory
       final downloadsDir = Directory('${directory.path}/Downloads');
       if (!await downloadsDir.exists()) {
         await downloadsDir.create(recursive: true);
       }
 
-      // Sanitize filename and ensure unique name
-      final sanitizedFilename = _sanitizeFilename(filename);
-      var filePath = '${downloadsDir.path}/$sanitizedFilename';
-      
       // Ensure unique filename if file already exists
+      var filePath = '${downloadsDir.path}/$sanitizedFilename';
       var counter = 1;
       while (await File(filePath).exists()) {
         final lastDotIndex = sanitizedFilename.lastIndexOf('.');
@@ -100,38 +119,87 @@ class DocumentService {
         if (counter > 1000) break; // Prevent infinite loop
       }
 
-      // Download file with timeout
-      final response = await http.get(uri!).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          throw Exception('Download timeout: File took too long to download');
-        },
-      );
+      // Download file with progress tracking
+      final client = http.Client();
+      try {
+        final request = http.Request('GET', uri);
+        final streamedResponse = await client.send(request).timeout(
+          const Duration(seconds: 60),
+          onTimeout: () {
+            client.close();
+            throw Exception('Download timeout: File took too long to download');
+          },
+        );
 
-      if (response.statusCode != 200) {
-        throw Exception('Failed to download file: HTTP ${response.statusCode}');
+        if (streamedResponse.statusCode != 200) {
+          await _notificationService.showDownloadFailed(sanitizedFilename, 'HTTP ${streamedResponse.statusCode}', notificationId);
+          throw Exception('Failed to download file: HTTP ${streamedResponse.statusCode}');
+        }
+
+        final contentLength = streamedResponse.contentLength ?? 0;
+        final file = File(filePath);
+        final sink = file.openWrite();
+
+        int downloaded = 0;
+
+        await for (final chunk in streamedResponse.stream) {
+          sink.add(chunk);
+          downloaded += chunk.length;
+
+          // Update progress notification (every 10%)
+          if (contentLength > 0) {
+            final progress = ((downloaded / contentLength) * 100).round();
+            if (progress % 10 == 0 || downloaded == contentLength) {
+              await _notificationService.showDownloadProgress(sanitizedFilename, notificationId, progress);
+            }
+          }
+        }
+
+        await sink.close();
+
+        if (await file.length() == 0) {
+          await _notificationService.showDownloadFailed(sanitizedFilename, 'Downloaded file is empty', notificationId);
+          throw Exception('Downloaded file is empty');
+        }
+
+        // Show download completed notification
+        await _notificationService.showDownloadCompleted(sanitizedFilename, filePath, notificationId);
+
+        return file;
+      } finally {
+        client.close();
       }
-
-      if (response.bodyBytes.isEmpty) {
-        throw Exception('Downloaded file is empty');
-      }
-
-      // Save file
-      final file = File(filePath);
-      await file.writeAsBytes(response.bodyBytes);
-
-      return file;
     } catch (e) {
+      // Generate notification ID for error notification
+      final notificationId = filename.hashCode.abs() % 2147483647;
+      final sanitizedFilename = _sanitizeFilename(filename);
+      
       // Provide more specific error messages
-      if (e.toString().contains('permission')) {
-        throw Exception('Permission denied. Please grant storage permission in app settings.');
-      } else if (e.toString().contains('timeout')) {
-        throw Exception('Download timeout. Please check your internet connection and try again.');
-      } else if (e.toString().contains('HTTP')) {
-        throw Exception('Failed to download file. The file may not be available.');
+      final errorString = e.toString();
+      String userFriendlyError;
+      
+      if (errorString.contains('permission')) {
+        userFriendlyError = 'Permission denied. Please grant storage permission in app settings.';
+      } else if (errorString.contains('timeout')) {
+        userFriendlyError = 'Download timeout. Please check your internet connection and try again.';
+      } else if (errorString.contains('Network error') || errorString.contains('Failed to get download URL')) {
+        userFriendlyError = 'Failed to connect to server. Please check your internet connection and try again.';
+      } else if (errorString.contains('HTTP') || errorString.contains('status')) {
+        userFriendlyError = 'Failed to download file. The file may not be available.';
+      } else if (errorString.contains('Access denied') || errorString.contains('403')) {
+        userFriendlyError = 'Access denied to this document. Please contact support.';
+      } else if (errorString.contains('File not found') || errorString.contains('404')) {
+        userFriendlyError = 'File not found. The document may have been removed.';
       } else {
-        throw Exception('Download failed: ${e.toString().replaceAll('Exception: ', '')}');
+        // Clean up error message
+        final cleanError = errorString.replaceAll('Exception: ', '').trim();
+        userFriendlyError = cleanError.isEmpty ? 'Download failed. Please try again.' : cleanError;
       }
+      
+      // Show download failed notification
+      await _notificationService.showDownloadFailed(sanitizedFilename, userFriendlyError, notificationId);
+      
+      throw Exception(userFriendlyError);
     }
   }
 

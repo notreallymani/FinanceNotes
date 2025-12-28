@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '../../utils/time_utils.dart';
 import '../../providers/payment_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/primary_button.dart';
-import '../../widgets/input_field.dart';
-import '../../utils/validators.dart';
 import '../../models/transaction_model.dart';
 import 'close_payment_confirmation_screen.dart';
 import 'customer_close_screen.dart';
@@ -21,14 +20,7 @@ class ClosePaymentScreen extends StatefulWidget {
 class _ClosePaymentScreenState extends State<ClosePaymentScreen> {
   final _filterFormKey = GlobalKey<FormState>();
   final _aadharController = TextEditingController();
-  final _ownerAadharController = TextEditingController();
-  final _otpController = TextEditingController();
-  bool _otpSent = false;
-  bool _isSendingOtp = false;
-  bool _isVerifyingOtp = false;
   bool _isClosingPayment = false;
-  bool _isBottomSheetShowing = false;
-  String? _selectedTransactionId;
   String _selectedTab = 'sent'; // 'sent' or 'received'
 
   @override
@@ -52,8 +44,6 @@ class _ClosePaymentScreenState extends State<ClosePaymentScreen> {
   @override
   void dispose() {
     _aadharController.dispose();
-    _ownerAadharController.dispose();
-    _otpController.dispose();
     super.dispose();
   }
 
@@ -101,107 +91,6 @@ class _ClosePaymentScreenState extends State<ClosePaymentScreen> {
     setState(() {
       _isClosingPayment = false;
     });
-  }
-
-  Future<void> _sendCustomerOtp(BuildContext context, TransactionModel t) async {
-    // Prevent multiple clicks
-    if (_isSendingOtp) {
-      return;
-    }
-
-    setState(() {
-      _isSendingOtp = true;
-    });
-
-    final paymentProvider =
-        Provider.of<PaymentProvider>(context, listen: false);
-    final ok = await paymentProvider.sendCustomerCloseOtp(
-      transactionId: t.id,
-      ownerAadhar: _ownerAadharController.text.trim(),
-    );
-    
-    if (!mounted) {
-      setState(() {
-        _isSendingOtp = false;
-      });
-      return;
-    }
-
-    setState(() {
-      _isSendingOtp = false;
-    });
-
-    if (ok) {
-      setState(() {
-        _otpSent = true;
-        _selectedTransactionId = t.id;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('OTP sent to owner'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(paymentProvider.error ?? 'Failed to send OTP'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  Future<void> _verifyCustomerOtp(BuildContext context, TransactionModel t) async {
-    // Prevent multiple clicks
-    if (_isVerifyingOtp) {
-      return;
-    }
-
-    setState(() {
-      _isVerifyingOtp = true;
-    });
-
-    final paymentProvider =
-        Provider.of<PaymentProvider>(context, listen: false);
-    final ok = await paymentProvider.verifyCustomerCloseOtp(
-      transactionId: t.id,
-      ownerAadhar: _ownerAadharController.text.trim(),
-      otp: _otpController.text.trim(),
-    );
-    
-    if (!mounted) {
-      setState(() {
-        _isVerifyingOtp = false;
-      });
-      return;
-    }
-
-    setState(() {
-      _isVerifyingOtp = false;
-    });
-
-    if (ok) {
-      setState(() {
-        _otpSent = false;
-        _selectedTransactionId = null;
-        _otpController.clear();
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Payment closed successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      await _loadPending();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(paymentProvider.error ?? 'Failed to verify OTP'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
   }
 
   Future<void> _startCustomerClose(BuildContext context, TransactionModel t) async {
@@ -508,7 +397,7 @@ class _ClosePaymentScreenState extends State<ClosePaymentScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Created: ${DateFormat('dd MMM yyyy, hh:mm a').format(t.createdAt)}',
+                    'Created: ${TimeUtils.formatIST(t.createdAt)}',
                     style: GoogleFonts.inter(
                       fontSize: 12,
                       color: Colors.grey[600],

@@ -33,6 +33,7 @@ class PaymentProvider with ChangeNotifier {
   Future<bool> sendPayment({
     required String aadhar,
     required double amount,
+    required String customerName,
     String? mobile,
     double? interest,
     List<PlatformFile>? proofFiles,
@@ -71,6 +72,7 @@ class PaymentProvider with ChangeNotifier {
     final result = await _useCase.sendPayment(
       aadhar: aadhar,
       amount: amount,
+      customerName: customerName,
       mobile: mobile,
       interest: interest,
       documents: documents,

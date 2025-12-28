@@ -18,17 +18,20 @@ import 'screens/payment/payment_history_screen.dart';
 import 'screens/search/search_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'screens/help/help_support_screen.dart';
+import 'services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Optimize: Initialize Firebase in parallel with other setup
+  // Optimize: Initialize Firebase and notification service in parallel
   await Future.wait([
     Firebase.initializeApp(),
     // Pre-cache fonts for faster rendering
     GoogleFonts.pendingFonts([
       GoogleFonts.inter(),
     ]),
+    // Initialize notification service for download notifications
+    NotificationService().initialize(),
   ]);
   
   runApp(const MyApp());

@@ -8,6 +8,7 @@ class PaymentRepository {
   Future<TransactionModel> sendPayment({
     required String aadhar,
     required double amount,
+    required String customerName,
     String? mobile,
     double? interest,
     List<dynamic>? documents,
@@ -15,6 +16,7 @@ class PaymentRepository {
     return _api.sendPayment(
       aadhar: aadhar,
       amount: amount,
+      customerName: customerName,
       mobile: mobile,
       interest: interest,
       documents: documents?.cast(),

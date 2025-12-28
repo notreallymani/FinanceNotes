@@ -5,11 +5,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:open_file/open_file.dart';
 import '../../models/transaction_model.dart';
 import '../../services/document_service.dart';
 import '../../utils/interest_calculator.dart';
+import '../../utils/time_utils.dart';
 
 class TransactionDetailScreen extends StatelessWidget {
   final TransactionModel transaction;
@@ -22,369 +23,144 @@ class TransactionDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: Text(
           'Transaction Details',
-          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+          style: GoogleFonts.inter(
+            fontWeight: FontWeight.w600,
+            fontSize: 20,
+          ),
         ),
         elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        centerTitle: false,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildHeader(context),
-              const SizedBox(height: 24),
               _buildAmountCard(context),
               const SizedBox(height: 16),
-              if (transaction.interest > 0) ...[
-                _buildInterestCalculationSection(context),
-                const SizedBox(height: 16),
-              ],
-              _buildInfoSection(context),
-              const SizedBox(height: 16),
-              _buildMobileSection(context),
-              const SizedBox(height: 16),
+              _buildDetailsCard(context),
               if (transaction.documents.isNotEmpty) ...[
-                _buildDocumentsSection(context),
                 const SizedBox(height: 16),
+                _buildDocumentsSection(context),
               ],
-              _buildStatusCard(context),
             ],
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Transaction ID',
-          style: GoogleFonts.inter(
-            fontSize: 12,
-            color: Colors.grey[600],
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          transaction.id,
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            color: Colors.grey[900],
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
     );
   }
 
   Widget _buildAmountCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.blue[50],
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.blue[200]!),
-      ),
-      child: Column(
-        children: [
-          Text(
-            'Amount',
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              color: Colors.grey[700],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '₹${transaction.amount.toStringAsFixed(2)}',
-            style: GoogleFonts.inter(
-              fontSize: 32,
-              fontWeight: FontWeight.w700,
-              color: Colors.blue[900],
-            ),
-          ),
-          if (transaction.interest > 0) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Interest: ₹${transaction.interest.toStringAsFixed(2)}',
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInterestCalculationSection(BuildContext context) {
-    final calculation = InterestCalculator.calculateInterest(
-      principal: transaction.amount,
-      interest: transaction.interest,
-      createdAt: transaction.createdAt,
-      closedAt: transaction.closedAt,
-    );
+    final calculation = transaction.interest > 0
+        ? InterestCalculator.calculateInterest(
+            principal: transaction.amount,
+            interest: transaction.interest,
+            createdAt: transaction.createdAt,
+            closedAt: transaction.closedAt,
+          )
+        : null;
+    final statusColor = _getStatusColor(transaction.status);
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.purple[50]!,
-            Colors.purple[100]!,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.purple[200]!, width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.purple.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.purple[600],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.calculate,
-                  color: Colors.white,
-                  size: 24,
+              Text(
+                'Amount',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Interest Calculation',
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.purple[900],
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'From ${calculation.formattedStartDate} to ${calculation.formattedEndDate}',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: Colors.purple[700],
-                      ),
-                    ),
-                  ],
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  transaction.status.toUpperCase(),
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: statusColor,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          
-          // Calculation Details
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              '₹${transaction.amount.toStringAsFixed(2)}',
+              style: GoogleFonts.inter(
+                fontSize: 36,
+                fontWeight: FontWeight.w700,
+                color: Colors.grey[900],
+              ),
             ),
-            child: Column(
+          ),
+          if (calculation != null) ...[
+            const SizedBox(height: 12),
+            const Divider(),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Principal Amount
-                _buildCalculationRow(
-                  label: 'Principal Amount',
-                  value: InterestCalculator.formatCurrency(calculation.principal),
-                  icon: Icons.account_balance_wallet,
-                  iconColor: Colors.blue,
-                ),
-                const Divider(height: 24),
-                
-                // Interest Rate/Amount
-                _buildCalculationRow(
-                  label: calculation.isPercentage 
-                      ? 'Interest Rate (per month)'
-                      : 'Interest Amount (per month)',
-                  value: calculation.isPercentage
-                      ? InterestCalculator.formatPercentage(calculation.interestRate)
-                      : InterestCalculator.formatCurrency(calculation.interestRate),
-                  icon: Icons.percent,
-                  iconColor: Colors.orange,
-                ),
-                const Divider(height: 24),
-                
-                // Period
-                _buildCalculationRow(
-                  label: 'Calculation Period',
-                  value: calculation.formattedPeriod,
-                  icon: Icons.calendar_today,
-                  iconColor: Colors.green,
-                ),
-                const Divider(height: 24),
-                
-                // Daily Interest
-                _buildCalculationRow(
-                  label: 'Daily Interest',
-                  value: InterestCalculator.formatCurrency(calculation.dailyInterest),
-                  icon: Icons.today,
-                  iconColor: Colors.teal,
-                ),
-                const Divider(height: 24),
-                
-                // Total Interest Accrued
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.orange[50],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.orange[200]!),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.trending_up, color: Colors.orange[700], size: 20),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Total Interest Accrued',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.orange[900],
-                          ),
-                        ),
-                      ),
-                      Text(
-                        InterestCalculator.formatCurrency(calculation.totalInterest),
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.orange[900],
-                        ),
-                      ),
-                    ],
+                Text(
+                  'Total Amount',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[700],
                   ),
                 ),
-                const SizedBox(height: 16),
-                
-                // Total Amount
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.purple[600]!,
-                        Colors.purple[700]!,
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.purple.withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Total Amount',
-                            style: GoogleFonts.inter(
-                              fontSize: 14,
-                              color: Colors.white.withOpacity(0.9),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Principal + Interest',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: Colors.white.withOpacity(0.7),
-                            ),
-                          ),
-                        ],
-                      ),
-                      Text(
-                        InterestCalculator.formatCurrency(calculation.totalAmount),
-                        style: GoogleFonts.inter(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
+                Text(
+                  InterestCalculator.formatCurrency(calculation.totalAmount),
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.grey[900],
                   ),
                 ),
               ],
             ),
-          ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildCalculationRow({
-    required String label,
-    required String value,
-    required IconData icon,
-    required Color iconColor,
-  }) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: iconColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: iconColor, size: 20),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              color: Colors.grey[700],
-            ),
-          ),
-        ),
-        Text(
-          value,
-          style: GoogleFonts.inter(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey[900],
-          ),
-        ),
-      ],
-    );
-  }
+  Widget _buildDetailsCard(BuildContext context) {
+    final receiverMobile = transaction.mobile;
+    final senderMobile = transaction.senderMobile;
+    final calculation = transaction.interest > 0
+        ? InterestCalculator.calculateInterest(
+            principal: transaction.amount,
+            interest: transaction.interest,
+            createdAt: transaction.createdAt,
+            closedAt: transaction.closedAt,
+          )
+        : null;
 
-  Widget _buildInfoSection(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -395,36 +171,45 @@ class TransactionDetailScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Transaction Information',
-            style: GoogleFonts.inter(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[900],
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildInfoRow('Sender Aadhaar', _maskAadhar(transaction.senderAadhar)),
+          _buildSimpleRow('Sender Aadhaar', _maskAadhar(transaction.senderAadhar)),
           const Divider(height: 24),
-          _buildInfoRow('Receiver Aadhaar', _maskAadhar(transaction.receiverAadhar)),
+          _buildSimpleRow('Receiver Aadhaar', _maskAadhar(transaction.receiverAadhar)),
+          if (transaction.customerName != null && transaction.customerName!.isNotEmpty) ...[
+            const Divider(height: 24),
+            _buildSimpleRow('Customer Name', transaction.customerName!),
+          ],
+          if (receiverMobile != null && receiverMobile.isNotEmpty) ...[
+            const Divider(height: 24),
+            _buildPhoneRow(context, 'Receiver Mobile', receiverMobile),
+          ],
+          if (senderMobile != null && senderMobile.isNotEmpty) ...[
+            const Divider(height: 24),
+            _buildPhoneRow(context, 'Sender Mobile', senderMobile),
+          ],
+          if (calculation != null) ...[
+            const Divider(height: 24),
+            _buildSimpleRow('Principal', InterestCalculator.formatCurrency(calculation.principal)),
+            const SizedBox(height: 12),
+            _buildSimpleRow('Interest Rate', calculation.isPercentage 
+                ? InterestCalculator.formatPercentage(calculation.interestRate)
+                : InterestCalculator.formatCurrency(calculation.interestRate)),
+            const SizedBox(height: 12),
+            _buildSimpleRow('Interest Amount', InterestCalculator.formatCurrency(calculation.totalInterest)),
+            const SizedBox(height: 12),
+            _buildSimpleRow('Period', calculation.formattedPeriod),
+          ],
           const Divider(height: 24),
-          _buildInfoRow(
-            'Created',
-            DateFormat('dd MMM yyyy, hh:mm a').format(transaction.createdAt),
-          ),
+          _buildSimpleRow('Created', TimeUtils.formatIST(transaction.createdAt)),
           if (transaction.closedAt != null) ...[
             const Divider(height: 24),
-            _buildInfoRow(
-              'Closed',
-              DateFormat('dd MMM yyyy, hh:mm a').format(transaction.closedAt!),
-            ),
+            _buildSimpleRow('Closed', TimeUtils.formatIST(transaction.closedAt!)),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
+  Widget _buildSimpleRow(String label, String value) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -433,8 +218,9 @@ class TransactionDetailScreen extends StatelessWidget {
           child: Text(
             label,
             style: GoogleFonts.inter(
-              fontSize: 14,
+              fontSize: 13,
               color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
             ),
           ),
         ),
@@ -444,7 +230,7 @@ class TransactionDetailScreen extends StatelessWidget {
             value,
             style: GoogleFonts.inter(
               fontSize: 14,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
               color: Colors.grey[900],
             ),
             textAlign: TextAlign.right,
@@ -454,75 +240,52 @@ class TransactionDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMobileSection(BuildContext context) {
-    final receiverMobile = transaction.mobile;
-    final senderMobile = transaction.senderMobile;
-
-    if (receiverMobile == null && senderMobile == null) {
-      return const SizedBox.shrink();
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Contact Information',
-            style: GoogleFonts.inter(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[900],
-            ),
-          ),
-          const SizedBox(height: 16),
-          if (receiverMobile != null && receiverMobile.isNotEmpty)
-            _buildMobileRow('Receiver Mobile', receiverMobile),
-          if (senderMobile != null && senderMobile.isNotEmpty) ...[
-            if (receiverMobile != null && receiverMobile.isNotEmpty)
-              const Divider(height: 24),
-            _buildMobileRow('Sender Mobile', senderMobile),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMobileRow(String label, String mobile) {
+  Widget _buildPhoneRow(BuildContext context, String label, String phone) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          flex: 2,
+          child: Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        Expanded(
+          flex: 3,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
               Text(
-                label,
+                phone,
                 style: GoogleFonts.inter(
                   fontSize: 14,
-                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[900],
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                mobile,
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.blue[700],
+              const SizedBox(width: 8),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _makePhoneCall(phone),
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.phone,
+                      size: 18,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
-        ),
-        IconButton(
-          icon: Icon(Icons.phone, color: Colors.blue[700]),
-          onPressed: () => _makePhoneCall(mobile),
-          tooltip: 'Call $mobile',
         ),
       ],
     );
@@ -539,29 +302,30 @@ class TransactionDetailScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.attach_file, color: Colors.grey[700], size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Proof Documents',
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey[900],
-                ),
-              ),
-            ],
+          Text(
+            'Documents (${transaction.documents.length})',
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[900],
+            ),
           ),
-          const SizedBox(height: 16),
-          ...transaction.documents.asMap().entries.map((entry) {
-            final index = entry.key;
-            final document = entry.value;
-            return Container(
-              margin: EdgeInsets.only(bottom: index < transaction.documents.length - 1 ? 12 : 0),
-              child: _buildDocumentCard(context, document),
-            );
-          }),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final itemWidth = (constraints.maxWidth - 8) / 2;
+              return Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: transaction.documents.map((document) {
+                  return SizedBox(
+                    width: itemWidth,
+                    child: _buildDocumentCard(context, document),
+                  );
+                }).toList(),
+              );
+            },
+          ),
         ],
       ),
     );
@@ -569,121 +333,60 @@ class TransactionDetailScreen extends StatelessWidget {
 
   Widget _buildDocumentCard(BuildContext context, TransactionDocument document) {
     final documentService = DocumentService();
+    final isImage = document.isImage;
+    final isPdf = document.isPdf;
+    final iconColor = isImage ? Colors.blue : (isPdf ? Colors.red : Colors.orange);
     
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _downloadDocument(context, document),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: document.isImage ? Colors.blue[100] : Colors.orange[100],
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              document.isImage ? Icons.image : document.isPdf ? Icons.picture_as_pdf : Icons.insert_drive_file,
-              color: document.isImage ? Colors.blue[700] : Colors.orange[700],
-              size: 24,
-            ),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey[200]!),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  document.filename,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey[900],
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isImage 
+                    ? Icons.image 
+                    : isPdf 
+                        ? Icons.picture_as_pdf 
+                        : Icons.insert_drive_file,
+                color: iconColor,
+                size: 32,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                document.filename,
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[900],
                 ),
-                if (document.size != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    documentService.formatFileSize(document.size),
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: Icon(Icons.download, color: Colors.blue[700]),
-            onPressed: () => _downloadDocument(context, document),
-            tooltip: 'Download ${document.filename}',
-          ),
-          IconButton(
-            icon: Icon(Icons.open_in_new, color: Colors.blue[700]),
-            onPressed: () => _viewDocument(context, document),
-            tooltip: 'View ${document.filename}',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _getStatusColor(transaction.status).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: _getStatusColor(transaction.status).withOpacity(0.3),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: _getStatusColor(transaction.status),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              _getStatusIcon(transaction.status),
-              color: Colors.white,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Status',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+              if (document.size != null) ...[
                 const SizedBox(height: 4),
                 Text(
-                  transaction.status.toUpperCase(),
+                  documentService.formatFileSize(document.size),
                   style: GoogleFonts.inter(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: _getStatusColor(transaction.status),
+                    fontSize: 10,
+                    color: Colors.grey[600],
                   ),
+                  textAlign: TextAlign.center,
                 ),
               ],
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -726,51 +429,44 @@ class TransactionDetailScreen extends StatelessWidget {
     }
   }
 
-  Future<void> _viewDocument(BuildContext context, TransactionDocument document) async {
-    final uri = Uri.parse(document.url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Cannot open ${document.filename}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
   Future<void> _downloadDocument(BuildContext context, TransactionDocument document) async {
     if (!context.mounted) return;
 
     // Show loading indicator
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Downloading ${document.filename}...',
-                style: const TextStyle(color: Colors.white),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  'Downloading ${document.filename}...',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
+          duration: const Duration(seconds: 30),
+          backgroundColor: Colors.blue[600],
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.all(16),
         ),
-        duration: const Duration(seconds: 30), // Longer duration for download
-        backgroundColor: Colors.blue,
-      ),
-    );
+      );
 
     try {
       final documentService = DocumentService();
@@ -785,6 +481,7 @@ class TransactionDetailScreen extends StatelessWidget {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
       if (file != null) {
+        // Show success snackbar with action to open file
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Column(
@@ -793,33 +490,60 @@ class TransactionDetailScreen extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.check_circle, color: Colors.white),
-                    const SizedBox(width: 8),
+                    const Icon(Icons.check_circle, color: Colors.white, size: 24),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         'Downloaded: ${document.filename}',
-                        style: const TextStyle(color: Colors.white),
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Saved to Downloads folder',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
-                    fontSize: 12,
+                const SizedBox(height: 6),
+                Padding(
+                  padding: const EdgeInsets.only(left: 36),
+                  child: Text(
+                    'Saved to Downloads folder',
+                    style: GoogleFonts.inter(
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: 13,
+                    ),
                   ),
                 ),
               ],
             ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
             action: SnackBarAction(
-              label: 'OK',
+              label: 'Open',
               textColor: Colors.white,
-              onPressed: () {},
+              onPressed: () async {
+                try {
+                  await OpenFile.open(file.path);
+                } catch (e) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Could not open file: $e',
+                        style: GoogleFonts.inter(),
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
             ),
+            backgroundColor: Colors.green[600],
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            margin: const EdgeInsets.all(16),
           ),
         );
       } else {
@@ -851,23 +575,32 @@ class TransactionDetailScreen extends StatelessWidget {
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.error_outline, color: Colors.white),
-              const SizedBox(width: 8),
+              const Icon(Icons.error_outline_rounded, color: Colors.white, size: 24),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   errorMessage,
-                  style: const TextStyle(color: Colors.white),
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ],
           ),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 4),
+          backgroundColor: Colors.red[600],
+          duration: const Duration(seconds: 5),
           action: SnackBarAction(
             label: 'OK',
             textColor: Colors.white,
             onPressed: () {},
           ),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.all(16),
         ),
       );
     }

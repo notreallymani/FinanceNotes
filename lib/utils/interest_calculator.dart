@@ -4,6 +4,7 @@
 /// Clean Architecture: Pure calculation logic
 
 import 'package:intl/intl.dart';
+import 'time_utils.dart';
 
 class InterestCalculation {
   final double principal;
@@ -28,8 +29,8 @@ class InterestCalculation {
     required this.isPercentage,
   });
 
-  String get formattedStartDate => DateFormat('dd MMM yyyy').format(startDate);
-  String get formattedEndDate => DateFormat('dd MMM yyyy').format(endDate);
+  String get formattedStartDate => TimeUtils.formatISTDateOnly(startDate);
+  String get formattedEndDate => TimeUtils.formatISTDateOnly(endDate);
   String get formattedPeriod => '$days ${days == 1 ? 'day' : 'days'}';
 }
 

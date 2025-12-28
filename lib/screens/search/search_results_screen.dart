@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
+import '../../utils/time_utils.dart';
 import 'package:provider/provider.dart';
 import '../../models/transaction_model.dart';
 import '../../providers/auth_provider.dart';
@@ -114,8 +114,8 @@ class SearchResultsScreen extends StatelessWidget {
                                       const SizedBox(height: 4),
                                       Text(
                                         transaction.status.toLowerCase() == 'closed' && transaction.closedAt != null
-                                            ? 'Closed: ${DateFormat('dd MMM yyyy, hh:mm a').format(transaction.closedAt!)}'
-                                            : 'Created: ${DateFormat('dd MMM yyyy, hh:mm a').format(transaction.createdAt)}',
+                                            ? 'Closed: ${TimeUtils.formatIST(transaction.closedAt!)}'
+                                            : 'Created: ${TimeUtils.formatIST(transaction.createdAt)}',
                                         style: GoogleFonts.inter(
                                           fontSize: 12,
                                           color: transaction.status.toLowerCase() == 'closed' 
@@ -161,16 +161,57 @@ class SearchResultsScreen extends StatelessWidget {
                                         final currentUserAadhar = authProvider.user?.aadhar ?? '';
                                         final isOwner = transaction.senderAadhar == currentUserAadhar;
                                         
-                                        return IconButton(
-                                          icon: Icon(
-                                            isOwner ? Icons.person : Icons.chat_bubble_outline,
-                                            size: 20,
+                                        // In search results, we're searching by customer Aadhaar
+                                        // So the current user is NOT the owner (they're searching for someone else's transactions)
+                                        // Always show the Send Message button
+                                        return Material(
+                                          color: Colors.transparent,
+                                          child: InkWell(
+                                            onTap: () => _openChat(context, transaction, isOwner),
+                                            borderRadius: BorderRadius.circular(8),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 12,
+                                                vertical: 8,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: isOwner 
+                                                    ? Colors.grey[200] 
+                                                    : Theme.of(context).primaryColor,
+                                                borderRadius: BorderRadius.circular(8),
+                                                boxShadow: isOwner ? null : [
+                                                  BoxShadow(
+                                                    color: Theme.of(context).primaryColor.withOpacity(0.3),
+                                                    blurRadius: 6,
+                                                    offset: const Offset(0, 2),
+                                                  ),
+                                                ],
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    isOwner ? Icons.person : Icons.message,
+                                                    size: 16,
+                                                    color: isOwner 
+                                                        ? Colors.grey[600] 
+                                                        : Colors.white,
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Text(
+                                                    isOwner ? 'Owner' : 'Message',
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: isOwner 
+                                                          ? Colors.grey[600] 
+                                                          : Colors.white,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
                                           ),
-                                          color: isOwner 
-                                              ? Colors.grey[600] 
-                                              : Theme.of(context).primaryColor,
-                                          tooltip: isOwner ? 'You are the owner' : 'Chat with owner',
-                                          onPressed: () => _openChat(context, transaction, isOwner),
                                         );
                                       },
                                     ),

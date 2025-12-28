@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:dio/dio.dart';
-import 'dart:convert';
 
 import '../repositories/payment_repository.dart';
 import '../models/transaction_model.dart';
@@ -81,6 +80,7 @@ class PaymentProvider with ChangeNotifier {
       // Refresh the list without cache in background (don't wait)
       fetchAll(page: 1, limit: 50, useCache: false).catchError((_) {
         // Silently fail - user can manually refresh
+        return false;
       });
       
       _isLoading = false;

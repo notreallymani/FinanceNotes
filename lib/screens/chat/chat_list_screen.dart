@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
+import '../../utils/time_utils.dart';
 import 'package:provider/provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -77,7 +77,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
   Widget _buildConversationTile(ChatConversation convo, bool isOwner, String currentUserAadhar) {
     final lastTime = convo.lastMessage?.createdAt != null
-        ? DateFormat('dd MMM, hh:mm a').format(convo.lastMessage!.createdAt)
+        ? TimeUtils.formatISTShort(convo.lastMessage!.createdAt)
         : '';
     final subtitle = convo.lastMessage?.message ?? 'No messages yet';
     final counterpartAadhar = isOwner ? convo.receiverAadhar : convo.senderAadhar;

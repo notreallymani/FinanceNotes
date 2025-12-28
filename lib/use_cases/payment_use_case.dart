@@ -16,11 +16,20 @@ class PaymentUseCase {
   Future<PaymentResult> sendPayment({
     required String aadhar,
     required double amount,
+    required String customerName,
     String? mobile,
     double? interest,
     List<MultipartFile>? documents,
   }) async {
     // Business logic validation
+    if (customerName.trim().isEmpty) {
+      return PaymentResult.failure('Customer name is required');
+    }
+
+    if (customerName.trim().length < 2) {
+      return PaymentResult.failure('Customer name must be at least 2 characters');
+    }
+
     if (aadhar.isEmpty || aadhar.length != 12) {
       return PaymentResult.failure('Aadhaar must be 12 digits');
     }
@@ -41,6 +50,7 @@ class PaymentUseCase {
       final transaction = await _repository.sendPayment(
         aadhar: aadhar,
         amount: amount,
+        customerName: customerName.trim(),
         mobile: mobile,
         interest: interest,
         documents: documents,

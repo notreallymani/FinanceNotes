@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '../../utils/time_utils.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/transaction_model.dart';
@@ -98,22 +99,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              isOwner ? 'Customer Chat' : 'Owner Chat',
-              style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-            ),
-            Text(
-              'Transaction: ${widget.transaction.id.substring(0, 8)}...',
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: FontWeight.normal,
-                color: Colors.white70,
-              ),
-            ),
-          ],
+        title: Text(
+          isOwner ? 'Customer Chat' : 'Owner Chat',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
         ),
         elevation: 0,
       ),
@@ -291,7 +279,7 @@ class _ChatScreenState extends State<ChatScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Text(
-                DateFormat('hh:mm a').format(message.createdAt),
+                TimeUtils.formatISTTimeOnly(message.createdAt),
                 style: GoogleFonts.inter(
                   fontSize: 11,
                   color: Colors.grey[600],

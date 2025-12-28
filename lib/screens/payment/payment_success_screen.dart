@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
+import '../../utils/time_utils.dart';
 import '../../models/transaction_model.dart';
 
 class PaymentSuccessScreen extends StatelessWidget {
@@ -68,14 +68,14 @@ class PaymentSuccessScreen extends StatelessWidget {
                               ? 'Closed Date'
                               : 'Created Date',
                           transaction.status.toLowerCase() == 'closed' && transaction.closedAt != null
-                              ? DateFormat('dd MMM yyyy, hh:mm a').format(transaction.closedAt!)
-                              : DateFormat('dd MMM yyyy, hh:mm a').format(transaction.createdAt),
+                              ? TimeUtils.formatIST(transaction.closedAt!)
+                              : TimeUtils.formatIST(transaction.createdAt),
                         ),
                         if (transaction.status.toLowerCase() == 'closed' && transaction.closedAt != null) ...[
                           const Divider(),
                           _buildInfoRow(
                             'Created Date',
-                            DateFormat('dd MMM yyyy, hh:mm a').format(transaction.createdAt),
+                            TimeUtils.formatIST(transaction.createdAt),
                           ),
                         ],
                       ],
