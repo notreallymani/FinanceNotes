@@ -8,6 +8,9 @@ class ChatConversation {
   final String? status;
   final String? senderAadhar;
   final String? receiverAadhar;
+  final String? senderName;
+  final String? receiverName;
+  final String? customerName;
   final DateTime? transactionCreatedAt;
 
   ChatConversation({
@@ -18,6 +21,9 @@ class ChatConversation {
     this.status,
     this.senderAadhar,
     this.receiverAadhar,
+    this.senderName,
+    this.receiverName,
+    this.customerName,
     this.transactionCreatedAt,
   });
 
@@ -30,6 +36,9 @@ class ChatConversation {
       'status': status,
       'senderAadhar': senderAadhar,
       'receiverAadhar': receiverAadhar,
+      'senderName': senderName,
+      'receiverName': receiverName,
+      'customerName': customerName,
       'transactionCreatedAt': transactionCreatedAt?.toIso8601String(),
     };
   }
@@ -53,6 +62,9 @@ class ChatConversation {
       senderAadhar: json['transaction']?['senderAadhar'] ?? json['senderAadhar'],
       receiverAadhar:
           json['transaction']?['receiverAadhar'] ?? json['receiverAadhar'],
+      senderName: json['transaction']?['senderName'] ?? json['senderName'],
+      receiverName: json['transaction']?['receiverName'] ?? json['receiverName'],
+      customerName: json['transaction']?['customerName'] ?? json['customerName'],
       transactionCreatedAt: json['transaction']?['createdAt'] != null
           ? DateTime.parse(json['transaction']['createdAt'])
           : null,

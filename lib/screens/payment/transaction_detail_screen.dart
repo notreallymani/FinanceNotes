@@ -311,20 +311,13 @@ class TransactionDetailScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final itemWidth = (constraints.maxWidth - 8) / 2;
-              return Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: transaction.documents.map((document) {
-                  return SizedBox(
-                    width: itemWidth,
-                    child: _buildDocumentCard(context, document),
-                  );
-                }).toList(),
+          Column(
+            children: transaction.documents.map((document) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _buildDocumentCard(context, document),
               );
-            },
+            }).toList(),
           ),
         ],
       ),
@@ -343,14 +336,14 @@ class TransactionDetailScreen extends StatelessWidget {
         onTap: () => _downloadDocument(context, document),
         borderRadius: BorderRadius.circular(8),
         child: Container(
-          padding: const EdgeInsets.all(12),
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             color: Colors.grey[50],
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: Colors.grey[200]!),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          child: Row(
             children: [
               Icon(
                 isImage 
@@ -359,31 +352,37 @@ class TransactionDetailScreen extends StatelessWidget {
                         ? Icons.picture_as_pdf 
                         : Icons.insert_drive_file,
                 color: iconColor,
-                size: 32,
+                size: 24,
               ),
-              const SizedBox(height: 8),
-              Text(
-                document.filename,
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey[900],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      document.filename,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[900],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (document.size != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        documentService.formatFileSize(document.size),
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
               ),
-              if (document.size != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  documentService.formatFileSize(document.size),
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    color: Colors.grey[600],
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
             ],
           ),
         ),

@@ -90,7 +90,14 @@ class _ChatListScreenState extends State<ChatListScreen> {
         : '';
     final subtitle = convo.lastMessage?.message ?? 'No messages yet';
     final counterpartAadhar = isOwner ? convo.receiverAadhar : convo.senderAadhar;
-    final amount = convo.amount != null ? '₹${convo.amount!.toStringAsFixed(2)}' : '';
+    final counterpartName = isOwner 
+        ? (convo.customerName ?? convo.receiverName ?? '')
+        : (convo.senderName ?? '');
+    final displayName = counterpartName.isNotEmpty 
+        ? counterpartName 
+        : _maskAadhar(counterpartAadhar ?? '-');
+    final maskedAadhar = _maskAadhar(counterpartAadhar ?? '-');
+    final amount = convo.amount != null ? '₹${convo.amount!.toStringAsFixed(0)}' : '';
     final status = convo.status?.toUpperCase() ?? '';
     final isLastFromMe = convo.lastMessage?.senderAadhar == currentUserAadhar;
     final unread = convo.unreadCount;
@@ -107,207 +114,226 @@ class _ChatListScreenState extends State<ChatListScreen> {
         statusColor = Colors.grey;
     }
 
-    return Card(
-      elevation: 0.5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: () async {
-          // Build a minimal TransactionModel to pass to ChatScreen
-          final tx = TransactionModel(
-            id: convo.transactionId,
-            senderAadhar: convo.senderAadhar ?? '',
-            receiverAadhar: convo.receiverAadhar ?? '',
-            amount: convo.amount ?? 0,
-            status: convo.status ?? 'pending',
-            createdAt: convo.transactionCreatedAt ?? DateTime.now(),
-            interest: 0,
-          );
-          // Navigate to chat screen and refresh conversations when returning
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ChatScreen(transaction: tx),
-            ),
-          );
-          // Refresh conversations list when returning from chat screen
-          if (mounted) {
-            Provider.of<ChatProvider>(context, listen: false).loadConversations(useCache: false);
-          }
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Row(
-            children: [
-              _buildAvatar(counterpartAadhar),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Aadhaar: ${_maskAadhar(counterpartAadhar ?? '-') }',
-                            style: GoogleFonts.inter(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14.5,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          lastTime,
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Icon(
-                          isLastFromMe ? Icons.north_east : Icons.south_west,
-                          size: 16,
-                          color: isLastFromMe ? Colors.blue : Colors.green,
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            subtitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.inter(
-                              color: Colors.grey[800],
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        if (amount.isNotEmpty)
-                          _chip(
-                            icon: Icons.payments_outlined,
-                            label: amount,
-                            bg: Colors.blue.withOpacity(0.08),
-                            fg: Colors.blue[800]!,
-                          ),
-                        const SizedBox(width: 6),
-                        if (status.isNotEmpty)
-                          _chip(
-                            icon: Icons.info_outline,
-                            label: status,
-                            bg: statusColor.withOpacity(0.12),
-                            fg: statusColor,
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: () async {
+            // Build a minimal TransactionModel to pass to ChatScreen
+            final tx = TransactionModel(
+              id: convo.transactionId,
+              senderAadhar: convo.senderAadhar ?? '',
+              receiverAadhar: convo.receiverAadhar ?? '',
+              amount: convo.amount ?? 0,
+              status: convo.status ?? 'pending',
+              createdAt: convo.transactionCreatedAt ?? DateTime.now(),
+              interest: 0,
+              customerName: convo.customerName,
+            );
+            // Navigate to chat screen and refresh conversations when returning
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ChatScreen(transaction: tx),
               ),
-              const SizedBox(width: 8),
-              if (unread > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.redAccent,
-                    borderRadius: BorderRadius.circular(12),
+            );
+            // Refresh conversations list when returning from chat screen
+            if (mounted) {
+              Provider.of<ChatProvider>(context, listen: false).loadConversations(useCache: false);
+            }
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                _buildAvatar(counterpartName, counterpartAadhar),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  displayName,
+                                  style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 15,
+                                    color: Colors.grey[900],
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (counterpartName.isNotEmpty && maskedAadhar.isNotEmpty)
+                                  Text(
+                                    maskedAadhar,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            lastTime,
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              subtitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.inter(
+                                color: Colors.grey[700],
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                          if (amount.isNotEmpty || status.isNotEmpty) ...[
+                            const SizedBox(width: 8),
+                            if (amount.isNotEmpty)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue[50],
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  amount,
+                                  style: GoogleFonts.inter(
+                                    color: Colors.blue[800],
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            if (status.isNotEmpty) ...[
+                              const SizedBox(width: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: statusColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  status,
+                                  style: GoogleFonts.inter(
+                                    color: statusColor,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ],
+                      ),
+                    ],
                   ),
-                  child: Text(
-                    '$unread',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                )
-              else
-                Icon(
-                  Icons.chevron_right,
-                  color: Colors.grey[400],
                 ),
-            ],
+                const SizedBox(width: 8),
+                if (unread > 0)
+                  Container(
+                    width: 22,
+                    height: 22,
+                    decoration: BoxDecoration(
+                      color: Colors.redAccent,
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      unread > 9 ? '9+' : '$unread',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                      ),
+                    ),
+                  )
+                else
+                  Icon(
+                    Icons.chevron_right,
+                    color: Colors.grey[400],
+                    size: 20,
+                  ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildAvatar(String? aadhar) {
-    final text = (aadhar != null && aadhar.length >= 4)
-        ? aadhar.substring(aadhar.length - 4)
-        : 'CHAT';
+  Widget _buildAvatar(String? name, String? aadhar) {
+    String text;
+    if (name != null && name.isNotEmpty) {
+      // Use first letter(s) of name
+      final parts = name.trim().split(' ');
+      if (parts.length > 1) {
+        text = '${parts[0][0]}${parts[parts.length - 1][0]}'.toUpperCase();
+      } else {
+        text = name.substring(0, name.length > 2 ? 2 : name.length).toUpperCase();
+      }
+    } else {
+      // Fallback to last 4 digits of Aadhaar
+      text = (aadhar != null && aadhar.length >= 4)
+          ? aadhar.substring(aadhar.length - 4)
+          : '----';
+    }
+    
     return Container(
-      width: 46,
-      height: 46,
+      width: 48,
+      height: 48,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: LinearGradient(
           colors: [
-            Colors.blue.shade400,
-            Colors.blue.shade700,
+            Colors.blue[400]!,
+            Colors.blue[600]!,
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue.withOpacity(0.15),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       alignment: Alignment.center,
       child: Text(
         text,
         style: GoogleFonts.inter(
           color: Colors.white,
-          fontWeight: FontWeight.w800,
-          fontSize: 13,
-          letterSpacing: 0.5,
+          fontWeight: FontWeight.w700,
+          fontSize: name != null && name.isNotEmpty ? 15 : 13,
+          letterSpacing: 1,
         ),
-      ),
-    );
-  }
-
-  Widget _chip({required IconData icon, required String label, required Color bg, required Color fg}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: fg),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              color: fg,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
       ),
     );
   }
 
   String _maskAadhar(String value) {
     if (value.length != 12) return value;
-    return '${value.substring(0, 4)} **** ${value.substring(8)}';
+    return '${value.substring(0, 4)} ${value.substring(8)}';
   }
 }
 

@@ -6,8 +6,14 @@ const ChatSchema = new mongoose.Schema(
     senderAadhar: { type: String, required: true }, // Who sent the message
     receiverAadhar: { type: String, required: true }, // Who receives the message
     message: { type: String, required: true },
+    status: { 
+      type: String, 
+      enum: ['sent', 'delivered', 'read'], 
+      default: 'sent' 
+    },
     read: { type: Boolean, default: false },
     readAt: { type: Date },
+    deliveredAt: { type: Date },
   },
   { timestamps: true }
 );

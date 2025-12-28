@@ -58,15 +58,34 @@ router.get('/list', auth, async (req, res) => {
     // Fetch transaction info for each conversation
     const txnIds = conversations.map((c) => c._id);
     const txns = await Transaction.find({ _id: { $in: txnIds } })
-      .select('amount status senderAadhar receiverAadhar createdAt')
+      .select('amount status senderAadhar receiverAadhar createdAt customerName')
       .lean();
     const txnMap = txns.reduce((acc, t) => {
       acc[t._id.toString()] = t;
       return acc;
     }, {});
 
+    // Collect all unique Aadhaar numbers to fetch user names
+    const aadharSet = new Set();
+    txns.forEach((tx) => {
+      if (tx.senderAadhar) aadharSet.add(tx.senderAadhar);
+      if (tx.receiverAadhar) aadharSet.add(tx.receiverAadhar);
+    });
+
+    // Fetch user names by Aadhaar
+    const users = await User.find({ aadhar: { $in: Array.from(aadharSet) } })
+      .select('aadhar name')
+      .lean();
+    const userMap = users.reduce((acc, u) => {
+      acc[u.aadhar] = u.name;
+      return acc;
+    }, {});
+
     const result = conversations.map((c) => {
       const tx = txnMap[c._id.toString()] || {};
+      const senderName = tx.senderAadhar ? (userMap[tx.senderAadhar] || '') : '';
+      const receiverName = tx.receiverAadhar ? (userMap[tx.receiverAadhar] || '') : '';
+      
       return {
         transactionId: c._id,
         lastMessage: c.lastMessage,
@@ -79,6 +98,9 @@ router.get('/list', auth, async (req, res) => {
           status: tx.status,
           senderAadhar: tx.senderAadhar,
           receiverAadhar: tx.receiverAadhar,
+          customerName: tx.customerName || receiverName, // Prefer transaction customerName, fallback to user name
+          senderName: senderName,
+          receiverName: receiverName,
           createdAt: tx.createdAt,
         },
       };
