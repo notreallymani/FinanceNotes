@@ -114,34 +114,39 @@ class _ChatScreenState extends State<ChatScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              displayName,
-              style: GoogleFonts.inter(
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-              ),
-            ),
             Row(
               children: [
-                Text(
-                  '₹${widget.transaction.amount.toStringAsFixed(0)} • ${widget.transaction.status.toUpperCase()}',
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
+                Expanded(
+                  child: Text(
+                    otherPartyName.isNotEmpty ? otherPartyName : maskedAadhar,
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (otherPartyName.isNotEmpty && maskedAadhar.isNotEmpty) ...[
+                if (maskedAadhar.isNotEmpty && otherPartyName.isNotEmpty) ...[
+                  const SizedBox(width: 8),
                   Text(
-                    ' • $maskedAadhar',
+                    maskedAadhar,
                     style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: Colors.grey[500],
-                      fontWeight: FontWeight.w400,
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
               ],
+            ),
+            Text(
+              '₹${widget.transaction.amount.toStringAsFixed(0)} • ${widget.transaction.status.toUpperCase()}',
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),

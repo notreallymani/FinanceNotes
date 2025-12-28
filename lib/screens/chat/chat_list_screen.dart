@@ -168,7 +168,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  displayName,
+                                  counterpartName.isNotEmpty ? counterpartName : maskedAadhar,
                                   style: GoogleFonts.inter(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 15,
@@ -177,7 +177,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                if (counterpartName.isNotEmpty && maskedAadhar.isNotEmpty)
+                                if (maskedAadhar.isNotEmpty)
                                   Text(
                                     maskedAadhar,
                                     style: GoogleFonts.inter(

@@ -83,31 +83,33 @@ class DashboardScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    ElevatedButton.icon(
-                      onPressed: () async {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const ProfileScreen(),
+                    Flexible(
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const ProfileScreen(),
+                            ),
+                          );
+                          // Refresh user data when returning from profile
+                          if (context.mounted) {
+                            final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                            await authProvider.fetchProfile();
+                          }
+                        },
+                        icon: const Icon(Icons.arrow_forward, size: 18),
+                        label: const Text('Verify'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange[600],
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
                           ),
-                        );
-                        // Refresh user data when returning from profile
-                        if (context.mounted) {
-                          final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                          await authProvider.fetchProfile();
-                        }
-                      },
-                      icon: const Icon(Icons.arrow_forward, size: 18),
-                      label: const Text('Verify'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange[600],
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                       ),
                     ),
