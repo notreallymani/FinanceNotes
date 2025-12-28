@@ -151,7 +151,8 @@ router.post('/send', auth, async (req, res) => {
       return res.status(400).json({ message: 'Transaction ID and message are required' });
     }
 
-    if (!userAadhar) {
+    // Validate user Aadhaar (must be non-empty string)
+    if (!userAadhar || typeof userAadhar !== 'string' || userAadhar.trim() === '') {
       return res.status(400).json({ message: 'User Aadhaar is required. Please complete your profile.' });
     }
 
@@ -161,27 +162,34 @@ router.post('/send', auth, async (req, res) => {
       return res.status(404).json({ message: 'Transaction not found' });
     }
 
-    if (!transaction.senderAadhar || !transaction.receiverAadhar) {
-      return res.status(400).json({ message: 'Transaction is missing required Aadhaar information' });
+    // Validate transaction Aadhaar fields
+    if (!transaction.senderAadhar || typeof transaction.senderAadhar !== 'string' || transaction.senderAadhar.trim() === '') {
+      return res.status(400).json({ message: 'Transaction is missing sender Aadhaar information' });
+    }
+    if (!transaction.receiverAadhar || typeof transaction.receiverAadhar !== 'string' || transaction.receiverAadhar.trim() === '') {
+      return res.status(400).json({ message: 'Transaction is missing receiver Aadhaar information' });
     }
 
-    // Validate that user is either owner or customer
-    const isOwner = userAadhar === transaction.senderAadhar;
-    const isCustomer = userAadhar === transaction.receiverAadhar;
+    // Determine if user is owner
+    const isOwner = userAadhar.trim() === transaction.senderAadhar.trim();
     
-    if (!isOwner && !isCustomer) {
-      return res.status(403).json({ message: 'You are not authorized to send messages for this transaction' });
-    }
-
-    // Determine receiver: if user is owner, receiver is customer; otherwise receiver is owner
+    // Determine receiver based on who is sending:
+    // - If user is owner: receiver is customer
+    // - If user is not owner (customer or anyone via global search): receiver is owner
+    // This allows global search feature where anyone can message the owner to ask about customer behavior
     const receiverAadhar = isOwner
-      ? transaction.receiverAadhar
-      : transaction.senderAadhar;
+      ? transaction.receiverAadhar.trim()
+      : transaction.senderAadhar.trim();
+
+    // Final validation: ensure receiver Aadhaar is not empty
+    if (!receiverAadhar) {
+      return res.status(400).json({ message: 'Unable to determine message receiver. Invalid transaction data.' });
+    }
 
     // Create message
     const chatMessage = await Chat.create({
       transactionId,
-      senderAadhar: userAadhar,
+      senderAadhar: userAadhar.trim(),
       receiverAadhar,
       message: message.trim(),
     });
