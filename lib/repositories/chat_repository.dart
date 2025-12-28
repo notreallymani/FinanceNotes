@@ -70,8 +70,10 @@ class ChatRepository {
     );
     PerformanceMonitor.end('send_message');
 
-    // Invalidate cache for this transaction
+    // Invalidate cache for this transaction's messages
     await _cache.remove('chat_messages_$transactionId');
+    // Also invalidate conversations cache so the chat list updates
+    await _cache.remove('chat_conversations');
 
     return newMessage;
   }

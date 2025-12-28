@@ -25,6 +25,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh conversations when screen becomes visible
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<ChatProvider>(context, listen: false).loadConversations(useCache: false);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final currentUserAadhar = authProvider.user?.aadhar ?? '';
@@ -103,7 +112,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: () {
+        onTap: () async {
           // Build a minimal TransactionModel to pass to ChatScreen
           final tx = TransactionModel(
             id: convo.transactionId,
@@ -114,12 +123,17 @@ class _ChatListScreenState extends State<ChatListScreen> {
             createdAt: convo.transactionCreatedAt ?? DateTime.now(),
             interest: 0,
           );
-          Navigator.push(
+          // Navigate to chat screen and refresh conversations when returning
+          await Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => ChatScreen(transaction: tx),
             ),
           );
+          // Refresh conversations list when returning from chat screen
+          if (mounted) {
+            Provider.of<ChatProvider>(context, listen: false).loadConversations(useCache: false);
+          }
         },
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
