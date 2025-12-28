@@ -1,6 +1,7 @@
 const express = require('express');
 const Chat = require('../models/Chat');
 const Transaction = require('../models/Transaction');
+const User = require('../models/User');
 const auth = require('../middleware/auth');
 
 const router = express.Router();
@@ -11,7 +12,9 @@ const router = express.Router();
  */
 router.get('/list', auth, async (req, res) => {
   try {
-    const userAadhar = req.user.aadhar || '';
+    // Fetch user from database to get latest Aadhaar (JWT might be stale)
+    const user = await User.findById(req.user.id);
+    const userAadhar = (user && user.aadhar) || '';
 
     // Find conversations where user is sender or receiver
     const pipeline = [
@@ -95,7 +98,9 @@ router.get('/list', auth, async (req, res) => {
 router.get('/transaction/:transactionId', auth, async (req, res) => {
   try {
     const { transactionId } = req.params;
-    const userAadhar = req.user.aadhar || '';
+    // Fetch user from database to get latest Aadhaar (JWT might be stale)
+    const user = await User.findById(req.user.id);
+    const userAadhar = (user && user.aadhar) || '';
 
     // Verify transaction exists
     const transaction = await Transaction.findById(transactionId);
@@ -113,25 +118,52 @@ router.get('/transaction/:transactionId', auth, async (req, res) => {
       .sort({ createdAt: 1 })
       .lean();
 
-    // Mark messages as read if they were sent to current user
+    // Mark messages as delivered and read if they were sent to current user
     const unreadMessages = messages.filter(
       (msg) => msg.receiverAadhar === userAadhar && !msg.read
     );
 
     if (unreadMessages.length > 0) {
+      const now = new Date();
       await Chat.updateMany(
         { 
           _id: { $in: unreadMessages.map(m => m._id) },
           receiverAadhar: userAadhar 
         },
         { 
+          status: 'read',
           read: true, 
-          readAt: new Date() 
+          readAt: now 
         }
       );
     }
 
-    return res.json({ messages });
+    // Update status to 'delivered' for messages that are still 'sent'
+    const undeliveredMessages = messages.filter(
+      (msg) => msg.receiverAadhar === userAadhar && msg.status === 'sent'
+    );
+
+    if (undeliveredMessages.length > 0) {
+      const now = new Date();
+      await Chat.updateMany(
+        { 
+          _id: { $in: undeliveredMessages.map(m => m._id) },
+          receiverAadhar: userAadhar,
+          status: 'sent'
+        },
+        { 
+          status: 'delivered',
+          deliveredAt: now 
+        }
+      );
+    }
+
+    // Fetch updated messages
+    const updatedMessages = await Chat.find({ transactionId })
+      .sort({ createdAt: 1 })
+      .lean();
+
+    return res.json({ messages: updatedMessages });
   } catch (e) {
     console.error('[Chat] Error getting messages:', e);
     return res.status(500).json({ message: 'Server error' });
@@ -145,18 +177,22 @@ router.get('/transaction/:transactionId', auth, async (req, res) => {
 router.post('/send', auth, async (req, res) => {
   try {
     const { transactionId, message } = req.body;
-    const userAadhar = req.user.aadhar || '';
 
     console.log('[Chat Send] Request received:', {
       transactionId: transactionId ? `${transactionId.substring(0, 8)}...` : 'missing',
       messageLength: message ? message.length : 0,
-      userAadhar: userAadhar ? `${userAadhar.substring(0, 4)}****` : 'missing',
+      userId: req.user.id,
     });
 
     if (!transactionId || !message || !message.trim()) {
       console.log('[Chat Send] Validation failed: Missing transactionId or message');
       return res.status(400).json({ message: 'Transaction ID and message are required' });
     }
+
+    // Fetch user from database to get latest Aadhaar (JWT might be stale)
+    const user = await User.findById(req.user.id);
+    const userAadhar = (user && user.aadhar) || '';
+    console.log(`[Chat Send] User ID: ${req.user.id}, Aadhaar from DB: ${userAadhar || 'EMPTY'}`);
 
     // Validate user Aadhaar (must be non-empty string)
     if (!userAadhar || typeof userAadhar !== 'string' || userAadhar.trim() === '') {
@@ -194,12 +230,13 @@ router.post('/send', auth, async (req, res) => {
       return res.status(400).json({ message: 'Unable to determine message receiver. Invalid transaction data.' });
     }
 
-    // Create message
+    // Create message with 'sent' status
     const chatMessage = await Chat.create({
       transactionId,
       senderAadhar: userAadhar.trim(),
       receiverAadhar,
       message: message.trim(),
+      status: 'sent',
     });
 
     return res.json({ message: chatMessage.toJSON() });
@@ -214,7 +251,9 @@ router.post('/send', auth, async (req, res) => {
  */
 router.get('/unread-count', auth, async (req, res) => {
   try {
-    const userAadhar = req.user.aadhar || '';
+    // Fetch user from database to get latest Aadhaar (JWT might be stale)
+    const user = await User.findById(req.user.id);
+    const userAadhar = (user && user.aadhar) || '';
 
     const count = await Chat.countDocuments({
       receiverAadhar: userAadhar,
