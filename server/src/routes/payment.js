@@ -189,10 +189,14 @@ router.get('/history', auth, async (req, res) => {
     const limit = Math.max(Math.min(parseInt(req.query.limit, 10) || 50, 100), 1);
     const skip = (page - 1) * limit;
 
-    // Only search by receiverAadhar (customer Aadhaar)
+    // Only search by receiverAadhar (customer Aadhaar) - NOT by senderAadhar
+    // This ensures we only show transactions where the searched Aadhaar is the customer
     const query = {
       receiverAadhar: aadhar,
     };
+
+    console.log(`[GET /api/payment/history] Searching for customer Aadhaar: ${aadhar.substring(0, 4)}****`);
+    console.log(`[GET /api/payment/history] Query:`, JSON.stringify(query));
 
     const [total, list] = await Promise.all([
       Transaction.countDocuments(query),
@@ -201,6 +205,8 @@ router.get('/history', auth, async (req, res) => {
         .skip(skip)
         .limit(limit),
     ]);
+
+    console.log(`[GET /api/payment/history] Found ${list.length} transactions (total: ${total}) for customer Aadhaar`);
 
     const transactions = list.map((t) => t.toJSON());
     const hasMore = skip + transactions.length < total;

@@ -22,36 +22,24 @@ class SearchRepository {
         _deduplicator = deduplicator ?? RequestDeduplicator();
 
   /// Search transactions by Aadhaar
+  /// Only returns transactions where the searched Aadhaar is the customer (receiverAadhar)
   Future<List<TransactionModel>> searchByAadhar(
     String aadhar, {
     bool useCache = true,
   }) async {
     final cacheKey = 'search_aadhar_$aadhar';
 
-    // Check cache first
-    if (useCache) {
-      final cachedData = await _cache.get(cacheKey);
-      if (cachedData != null) {
-        try {
-          final List<dynamic> transactions = cachedData['transactions'] ?? [];
-          return transactions
-              .map((json) => TransactionModel.fromJson(json as Map<String, dynamic>))
-              .toList();
-        } catch (e) {
-          // Cache invalid, continue to fetch
-        }
-      }
-    }
+    // Always clear cache for search to get fresh results (search should always be current)
+    // This ensures we don't show stale data if the backend query logic changed
+    await _cache.remove(cacheKey);
 
     return await _deduplicator.deduplicate(cacheKey, () async {
       PerformanceMonitor.start('search_aadhar_$aadhar');
       final transactions = await _api.getHistoryByAadhar(aadhar);
       PerformanceMonitor.end('search_aadhar_$aadhar');
 
-      // Cache the response
-      await _cache.put(cacheKey, {
-        'transactions': transactions.map((t) => t.toJson()).toList(),
-      });
+      // Don't cache search results - always fetch fresh data
+      // This ensures search always shows current results matching customer Aadhaar only
 
       return transactions;
     });
