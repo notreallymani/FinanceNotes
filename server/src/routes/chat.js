@@ -147,12 +147,20 @@ router.post('/send', auth, async (req, res) => {
     const { transactionId, message } = req.body;
     const userAadhar = req.user.aadhar || '';
 
+    console.log('[Chat Send] Request received:', {
+      transactionId: transactionId ? `${transactionId.substring(0, 8)}...` : 'missing',
+      messageLength: message ? message.length : 0,
+      userAadhar: userAadhar ? `${userAadhar.substring(0, 4)}****` : 'missing',
+    });
+
     if (!transactionId || !message || !message.trim()) {
+      console.log('[Chat Send] Validation failed: Missing transactionId or message');
       return res.status(400).json({ message: 'Transaction ID and message are required' });
     }
 
     // Validate user Aadhaar (must be non-empty string)
     if (!userAadhar || typeof userAadhar !== 'string' || userAadhar.trim() === '') {
+      console.log('[Chat Send] Validation failed: User Aadhaar is missing or empty');
       return res.status(400).json({ message: 'User Aadhaar is required. Please complete your profile.' });
     }
 
