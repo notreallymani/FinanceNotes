@@ -151,15 +151,32 @@ router.post('/send', auth, async (req, res) => {
       return res.status(400).json({ message: 'Transaction ID and message are required' });
     }
 
+    if (!userAadhar) {
+      return res.status(400).json({ message: 'User Aadhaar is required. Please complete your profile.' });
+    }
+
     // Verify transaction exists
     const transaction = await Transaction.findById(transactionId);
     if (!transaction) {
       return res.status(404).json({ message: 'Transaction not found' });
     }
 
-    // Allow any authenticated user to message the owner.
-    // Receiver is always the owner/creator (senderAadhar on the transaction).
-    const receiverAadhar = transaction.senderAadhar || '';
+    if (!transaction.senderAadhar || !transaction.receiverAadhar) {
+      return res.status(400).json({ message: 'Transaction is missing required Aadhaar information' });
+    }
+
+    // Validate that user is either owner or customer
+    const isOwner = userAadhar === transaction.senderAadhar;
+    const isCustomer = userAadhar === transaction.receiverAadhar;
+    
+    if (!isOwner && !isCustomer) {
+      return res.status(403).json({ message: 'You are not authorized to send messages for this transaction' });
+    }
+
+    // Determine receiver: if user is owner, receiver is customer; otherwise receiver is owner
+    const receiverAadhar = isOwner
+      ? transaction.receiverAadhar
+      : transaction.senderAadhar;
 
     // Create message
     const chatMessage = await Chat.create({
