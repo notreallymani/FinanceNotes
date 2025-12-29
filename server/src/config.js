@@ -71,7 +71,11 @@ const config = {
   // Google Cloud Platform Configuration
   gcpProjectId: process.env.GCP_PROJECT_ID || 'financenotes-11ff0',
   gcpStorageBucket: process.env.GCP_STORAGE_BUCKET || 'financenotes-docs',
-  gcpStorageKeyFile: process.env.GCP_STORAGE_KEY_FILE || './financenotes-11ff0-05155bafecde.json'
+  gcpStorageKeyFile: process.env.GCP_STORAGE_KEY_FILE || './financenotes-11ff0-05155bafecde.json',
+  
+  // Firebase Web API Key (for password reset sync)
+  // Get this from Firebase Console → Project Settings → General → Web API Key
+  firebaseWebApiKey: process.env.FIREBASE_WEB_API_KEY || null
 };
 
 // Validate required production environment variables
