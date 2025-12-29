@@ -259,78 +259,67 @@ router.post('/email-login', async (req, res) => {
     // If MongoDB password fails, check Firebase Auth (in case password was reset via Firebase)
     if (!isValidPassword) {
       console.log(`${logPrefix} MongoDB password failed, checking Firebase Auth...`);
-      try {
-        const firebaseAdmin = require('../services/firebaseAdminService');
-        firebaseAdmin.initializeFirebaseAdmin();
-        const admin = firebaseAdmin.getFirebaseAdmin();
-        
-        // Check if user exists in Firebase Auth
+      
+      // Try to verify password with Firebase Auth REST API directly
+      // This works even if user doesn't exist in Firebase Admin SDK's view
+      // because Firebase Web API can verify passwords for users created via password reset
+      const firebaseWebApiKey = config.firebaseWebApiKey || process.env.FIREBASE_WEB_API_KEY;
+      
+      console.log(`${logPrefix} Firebase Web API key configured: ${firebaseWebApiKey ? 'Yes (length: ' + firebaseWebApiKey.length + ')' : 'No'}`);
+      
+      if (firebaseWebApiKey) {
         try {
-          const firebaseUser = await admin.auth().getUserByEmail(normalizedEmail);
+          // Use Firebase Identity Toolkit API to verify password
+          // This will work if user exists in Firebase Auth (created via password reset)
+          const signInUrl = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseWebApiKey}`;
           
-          // User exists in Firebase Auth - verify password using Firebase Auth REST API
-          // We need to use the Web API key for this
-          const serviceAccount = require(path.resolve(__dirname, '../', config.gcpStorageKeyFile));
-          const projectId = serviceAccount.project_id || config.gcpProjectId;
+          console.log(`${logPrefix} Attempting Firebase Auth password verification...`);
           
-          // Try to verify password with Firebase Auth REST API
-          // Note: This requires the Firebase Web API key, which should be in config
-          // If not available, we'll use an alternative approach
-          const firebaseWebApiKey = config.firebaseWebApiKey || process.env.FIREBASE_WEB_API_KEY;
-          
-          console.log(`${logPrefix} Firebase Web API key configured: ${firebaseWebApiKey ? 'Yes' : 'No'}`);
-          
-          if (firebaseWebApiKey) {
-            try {
-              // Use Firebase Identity Toolkit API to verify password
-              const signInUrl = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseWebApiKey}`;
-              
-              const response = await axios.post(
-                signInUrl,
-                {
-                  email: normalizedEmail,
-                  password: password,
-                  returnSecureToken: true,
-                },
-                {
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                }
-              );
-              
-              // If Firebase Auth login succeeds, password is correct
-              if (response.data && response.data.idToken) {
-                console.log(`${logPrefix} Firebase Auth password verified, syncing to MongoDB...`);
-                
-                // Update MongoDB passwordHash to match the new password
-                const newPasswordHash = await bcrypt.hash(password, 10);
-                user.passwordHash = newPasswordHash;
-                await user.save();
-                
-                console.log(`${logPrefix} MongoDB passwordHash updated to match Firebase Auth`);
-                isValidPassword = true;
-              }
-            } catch (firebaseAuthError) {
-              // Firebase Auth verification failed - password is incorrect
-              console.log(`${logPrefix} Firebase Auth password verification failed:`, firebaseAuthError.response?.data?.error?.message || firebaseAuthError.message);
+          const response = await axios.post(
+            signInUrl,
+            {
+              email: normalizedEmail,
+              password: password,
+              returnSecureToken: true,
+            },
+            {
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              timeout: 10000, // 10 second timeout
             }
-          } else {
-            console.log(`${logPrefix} ⚠️  Firebase Web API key not configured. Cannot verify Firebase Auth password.`);
-            console.log(`${logPrefix} To enable password reset sync, add FIREBASE_WEB_API_KEY to your .env.production file.`);
-            console.log(`${logPrefix} Get your Web API key from: Firebase Console → Project Settings → General → Web API Key`);
+          );
+          
+          // If Firebase Auth login succeeds, password is correct
+          if (response.data && response.data.idToken) {
+            console.log(`${logPrefix} ✅ Firebase Auth password verified successfully!`);
+            console.log(`${logPrefix} Syncing password to MongoDB...`);
+            
+            // Update MongoDB passwordHash to match the new password
+            const newPasswordHash = await bcrypt.hash(password, 10);
+            user.passwordHash = newPasswordHash;
+            await user.save();
+            
+            console.log(`${logPrefix} ✅ MongoDB passwordHash updated to match Firebase Auth`);
+            isValidPassword = true;
           }
-        } catch (firebaseError) {
-          // User doesn't exist in Firebase Auth or other error
-          if (firebaseError.code === 'auth/user-not-found') {
-            console.log(`${logPrefix} User not found in Firebase Auth. They may need to reset password first.`);
+        } catch (firebaseAuthError) {
+          // Firebase Auth verification failed
+          const errorMessage = firebaseAuthError.response?.data?.error?.message || firebaseAuthError.message;
+          const errorCode = firebaseAuthError.response?.data?.error?.code;
+          
+          if (errorCode === 'EMAIL_NOT_FOUND' || errorCode === 'USER_NOT_FOUND') {
+            console.log(`${logPrefix} User not found in Firebase Auth. They may need to complete password reset first.`);
+          } else if (errorCode === 'INVALID_PASSWORD' || errorCode === 'INVALID_EMAIL') {
+            console.log(`${logPrefix} Firebase Auth password verification failed: ${errorMessage}`);
           } else {
-            console.log(`${logPrefix} Firebase Auth check error:`, firebaseError.message);
+            console.log(`${logPrefix} Firebase Auth verification error: ${errorMessage} (code: ${errorCode})`);
           }
         }
-      } catch (error) {
-        // Firebase check failed, continue with original error
-        console.log(`${logPrefix} Firebase Auth verification error:`, error.message);
+      } else {
+        console.log(`${logPrefix} ⚠️  Firebase Web API key not configured. Cannot verify Firebase Auth password.`);
+        console.log(`${logPrefix} To enable password reset sync, add FIREBASE_WEB_API_KEY to your .env.production file.`);
+        console.log(`${logPrefix} Get your Web API key from: Firebase Console → Project Settings → General → Web API Key`);
       }
     }
     
