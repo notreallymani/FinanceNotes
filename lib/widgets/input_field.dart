@@ -13,9 +13,12 @@ class InputField extends StatelessWidget {
   final IconData? prefixIcon;
   final bool enabled;
   final void Function(String)? onChanged;
+  final void Function(String)? onFieldSubmitted;
   final TextAlign? textAlign;
   final TextStyle? style;
   final TextCapitalization textCapitalization;
+  final TextInputAction? textInputAction;
+  final bool autofocus;
 
   const InputField({
     super.key,
@@ -30,9 +33,12 @@ class InputField extends StatelessWidget {
     this.prefixIcon,
     this.enabled = true,
     this.onChanged,
+    this.onFieldSubmitted,
     this.textAlign,
     this.style,
     this.textCapitalization = TextCapitalization.none,
+    this.textInputAction,
+    this.autofocus = false,
   });
 
   @override
@@ -56,7 +62,10 @@ class InputField extends StatelessWidget {
           obscureText: obscureText,
           maxLength: maxLength,
           enabled: enabled,
+          autofocus: autofocus,
           onChanged: onChanged,
+          onFieldSubmitted: onFieldSubmitted,
+          textInputAction: textInputAction ?? (onFieldSubmitted != null ? TextInputAction.done : null),
           textAlign: textAlign ?? TextAlign.start,
           textCapitalization: textCapitalization,
           style: style ?? GoogleFonts.inter(

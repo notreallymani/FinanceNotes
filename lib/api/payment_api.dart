@@ -144,6 +144,31 @@ class PaymentApi {
     }
   }
 
+  Future<List<TransactionModel>> getReceivedTransactions({
+    int page = 1,
+    int limit = 50,
+  }) async {
+    try {
+      // Get received transactions where receiverAadhar matches user's Aadhaar
+      final receivedEndpoint =
+          AppConstants.paymentHistoryEndpoint.replaceFirst('/history', '/received');
+      final response = await _dio.get(
+        receivedEndpoint,
+        queryParameters: {
+          'page': page,
+          'limit': limit,
+        },
+      );
+      final List<dynamic> transactions =
+          response.data['transactions'] ?? response.data ?? [];
+      return transactions
+          .map((json) => TransactionModel.fromJson(json))
+          .toList();
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
   Future<String> getDocumentDownloadUrl(String documentUrl) async {
     try {
       final response = await _dio.get(

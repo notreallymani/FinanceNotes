@@ -22,28 +22,49 @@ class PaymentHistoryScreen extends StatefulWidget {
   State<PaymentHistoryScreen> createState() => _PaymentHistoryScreenState();
 }
 
-class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
+class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> with SingleTickerProviderStateMixin {
   final _searchController = TextEditingController();
   TransactionFilter _filter = const TransactionFilter();
+  late TabController _tabController;
+  int _currentTabIndex = 0;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) {
+        setState(() {
+          _currentTabIndex = _tabController.index;
+        });
+        // Load data for the selected tab if not already loaded
+        if (widget.transactions == null) {
+          final paymentProvider =
+              Provider.of<PaymentProvider>(context, listen: false);
+          if (_tabController.index == 0) {
+            paymentProvider.fetchAll();
+          } else {
+            paymentProvider.fetchReceived();
+          }
+        }
+      }
+    });
     // Load all payments when this screen is opened, unless an explicit
     // transactions list is injected.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.transactions == null) {
         final paymentProvider =
             Provider.of<PaymentProvider>(context, listen: false);
-        // Show only the transactions created by the current user
-        // (senderAadhar == user Aadhaar) via the /payment/all endpoint.
+        // Load both sent and received transactions
         paymentProvider.fetchAll();
+        paymentProvider.fetchReceived();
       }
     });
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -57,6 +78,14 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
           style: GoogleFonts.inter(fontWeight: FontWeight.w600),
         ),
         elevation: 0,
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Sent'),
+            Tab(text: 'Received'),
+          ],
+          labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
+        ),
         actions: [
           // Filter button with badge
           Stack(
@@ -89,11 +118,11 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
       body: SafeArea(
         child: Consumer2<AuthProvider, PaymentProvider>(
           builder: (context, authProvider, paymentProvider, _) {
-            // Always show all transactions provided by the backend (either
-            // from the provider history or injected from Search), and simply
-            // sort them by most recent first. Any ownership filtering should
-            // be handled server-side when fetching history.
-            final base = widget.transactions ?? paymentProvider.history;
+            // Show transactions based on selected tab
+            final base = widget.transactions ?? 
+                (_currentTabIndex == 0 
+                    ? paymentProvider.history  // Sent transactions
+                    : paymentProvider.receivedHistory); // Received transactions
             final allItems = List<TransactionModel>.from(base);
             
             // Apply filters
@@ -117,11 +146,15 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                 _buildQuickFilters(),
                 // Transaction List
                 Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: () async {
-                      final paymentProvider = Provider.of<PaymentProvider>(context, listen: false);
-                      await paymentProvider.fetchAll(useCache: false);
-                    },
+                    child: RefreshIndicator(
+                      onRefresh: () async {
+                        final paymentProvider = Provider.of<PaymentProvider>(context, listen: false);
+                        if (_currentTabIndex == 0) {
+                          await paymentProvider.fetchAll(useCache: false);
+                        } else {
+                          await paymentProvider.fetchReceived(useCache: false);
+                        }
+                      },
                     child: items.isEmpty
                         ? _buildEmptyState()
                         : ListView.builder(
@@ -214,9 +247,19 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (transaction.customerName != null && transaction.customerName!.isNotEmpty) ...[
+                    if (_currentTabIndex == 0 && transaction.customerName != null && transaction.customerName!.isNotEmpty) ...[
                       Text(
                         transaction.customerName!,
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[900],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                    ] else if (_currentTabIndex == 1) ...[
+                      Text(
+                        'Payment Request',
                         style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -235,7 +278,9 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Aadhaar: ${_maskAadhar(transaction.receiverAadhar)}',
+                      _currentTabIndex == 0
+                          ? 'Customer Aadhaar: ${_maskAadhar(transaction.receiverAadhar)}'
+                          : 'Owner Aadhaar: ${_maskAadhar(transaction.senderAadhar)}',
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         color: Colors.grey[600],

@@ -66,7 +66,6 @@ class ChatMessage {
         case MessageStatus.delivered:
           return 'delivered';
         case MessageStatus.sent:
-        default:
           return 'sent';
       }
     }

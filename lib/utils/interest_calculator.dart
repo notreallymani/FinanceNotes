@@ -3,7 +3,6 @@
 /// Single Responsibility: Calculate interest based on transaction dates
 /// Clean Architecture: Pure calculation logic
 
-import 'package:intl/intl.dart';
 import 'time_utils.dart';
 
 class InterestCalculation {

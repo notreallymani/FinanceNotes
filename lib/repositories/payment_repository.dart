@@ -94,6 +94,17 @@ class PaymentRepository {
     return fetched;
   }
 
+  Future<List<TransactionModel>> getReceivedTransactions({
+    int page = 1,
+    int limit = 50,
+  }) async {
+    final fetched = await _api.getReceivedTransactions(
+      page: page,
+      limit: limit,
+    );
+    return fetched;
+  }
+
   void clearCache() {
     _historyCache.clear();
   }

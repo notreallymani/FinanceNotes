@@ -13,12 +13,14 @@ class PaymentProvider with ChangeNotifier {
   final RequestDeduplicator _deduplicator = RequestDeduplicator();
 
   List<TransactionModel> _history = [];
+  List<TransactionModel> _receivedHistory = [];
   TransactionModel? _currentTransaction;
   bool _isLoading = false;
   String? _error;
   bool _isOtpSending = false;
 
   List<TransactionModel> get history => _history;
+  List<TransactionModel> get receivedHistory => _receivedHistory;
   TransactionModel? get currentTransaction => _currentTransaction;
   bool get isLoading => _isLoading;
   bool get isOtpSending => _isOtpSending;
@@ -128,6 +130,16 @@ class PaymentProvider with ChangeNotifier {
         ownerAadhar: ownerAadhar,
         otp: otp,
       );
+      // Clear cache and refresh lists
+      await _cache.remove('payment_all_1_50');
+      await _cache.remove('payment_received_1_50');
+      // Refresh in background
+      fetchAll(useCache: false).catchError((_) {
+        // Silently fail - background refresh
+      });
+      fetchReceived(useCache: false).catchError((_) {
+        // Silently fail - background refresh
+      });
       _isLoading = false;
       notifyListeners();
       return true;
@@ -257,6 +269,68 @@ class PaymentProvider with ChangeNotifier {
   void clearCurrentTransaction() {
     _currentTransaction = null;
     notifyListeners();
+  }
+
+  Future<bool> fetchReceived({int page = 1, int limit = 50, bool useCache = true}) async {
+    final cacheKey = 'payment_received_${page}_$limit';
+    
+    // Check cache first
+    if (useCache && page == 1) {
+      final cachedData = await _cache.get(cacheKey);
+      if (cachedData != null) {
+        try {
+          final List<dynamic> transactionsJson = cachedData['transactions'] ?? [];
+          _receivedHistory = transactionsJson.map((json) => TransactionModel.fromJson(json)).toList();
+          notifyListeners();
+          // Load fresh data in background
+          _fetchReceivedInBackground(page: page, limit: limit);
+          return true;
+        } catch (e) {
+          // Cache invalid, continue to fetch
+        }
+      }
+    }
+
+    return await _deduplicator.deduplicate(cacheKey, () async {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      try {
+        PerformanceMonitor.start('fetch_received_payments');
+        _receivedHistory = await _repo.getReceivedTransactions(page: page, limit: limit);
+        PerformanceMonitor.end('fetch_received_payments');
+
+        // Cache the response
+        if (page == 1) {
+          await _cache.put(cacheKey, {
+            'transactions': _receivedHistory.map((t) => t.toJson()).toList(),
+          });
+        }
+
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } catch (e) {
+        _error = e.toString().replaceAll('Exception: ', '');
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    });
+  }
+
+  Future<void> _fetchReceivedInBackground({int page = 1, int limit = 50}) async {
+    try {
+      final freshHistory = await _repo.getReceivedTransactions(page: page, limit: limit);
+      _receivedHistory = freshHistory;
+      await _cache.put('payment_received_${page}_$limit', {
+        'transactions': _receivedHistory.map((t) => t.toJson()).toList(),
+      });
+      notifyListeners();
+    } catch (e) {
+      // Silently fail - user already has cached data
+    }
   }
 }
 

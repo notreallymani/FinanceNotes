@@ -7,8 +7,6 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:open_file/open_file.dart';
-import 'package:share_plus/share_plus.dart';
 import '../api/payment_api.dart';
 import 'notification_service.dart';
 

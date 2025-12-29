@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/primary_button.dart';
 import '../../utils/navigation_helper.dart';
@@ -300,12 +301,23 @@ class DashboardScreen extends StatelessWidget {
                   const Divider(),
                   _buildDrawerItem(
                     context,
-                    icon: Icons.settings,
-                    title: 'Settings',
-                    onTap: () {
+                    icon: Icons.delete_outline,
+                    title: 'Delete Account',
+                    onTap: () async {
                       Navigator.pop(context);
-                      // Navigate to settings
-                      // Navigator.pushNamed(context, '/settings');
+                      final url = Uri.parse('https://notreallymani.github.io/FinanceNotes/delete-account.html');
+                      if (await canLaunchUrl(url)) {
+                        await launchUrl(url, mode: LaunchMode.externalApplication);
+                      } else {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Could not open delete account page'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
                     },
                   ),
                   _buildDrawerItem(

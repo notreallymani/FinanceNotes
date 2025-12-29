@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 import '../../utils/time_utils.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -352,7 +351,6 @@ class _ChatScreenState extends State<ChatScreen> {
         color = Colors.grey[600]!;
         break;
       case MessageStatus.sent:
-      default:
         icon = Icons.done;
         color = Colors.grey[600]!;
         break;

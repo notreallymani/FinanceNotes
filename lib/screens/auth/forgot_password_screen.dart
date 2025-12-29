@@ -30,6 +30,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   Future<void> _handleSubmit() async {
+    // Unfocus keyboard first
+    FocusScope.of(context).unfocus();
+    
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -37,7 +40,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     });
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final success = await authProvider.sendPasswordReset(_emailController.text.trim());
+    final email = _emailController.text.trim();
+    final success = await authProvider.sendPasswordReset(email);
 
     if (!mounted) return;
 
@@ -49,12 +53,37 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text(
-            'If an account exists, a password reset link has been sent to your email.',
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Password reset link sent!',
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'If an account exists, a reset link has been sent. Please check your inbox AND spam folder.',
+                style: GoogleFonts.inter(fontSize: 13),
+              ),
+            ],
           ),
           backgroundColor: Colors.green[700],
           behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 6),
         ),
       );
       // Navigate back after a moment
@@ -63,12 +92,28 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           Navigator.of(context).pop();
         }
       });
-    } else if (authProvider.error != null) {
+    } else {
+      // Show error message
+      final errorMessage = authProvider.error ?? 'Failed to send password reset email. Please try again.';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(authProvider.error!),
-          backgroundColor: Colors.red,
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  errorMessage,
+                  style: GoogleFonts.inter(fontSize: 14),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.red[700],
           behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 4),
         ),
       );
     }
@@ -137,6 +182,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   keyboardType: TextInputType.emailAddress,
                   validator: (value) => Validators.validateEmail(value),
                   prefixIcon: Icons.email_outlined,
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _handleSubmit(),
                 ),
                 const SizedBox(height: 32),
                 // Submit Button
@@ -165,7 +212,51 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                // Help Text
+                // Help Text - Spam Folder Guidance
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[50],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.orange[200]!),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.warning_amber_rounded, color: Colors.orange[700], size: 22),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Important: Check Your Spam Folder',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.orange[900],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Password reset emails may go to your spam/junk folder. Please check:\n'
+                        '• Your inbox\n'
+                        '• Spam/Junk folder\n'
+                        '• Promotions tab (Gmail)\n'
+                        '• All Mail folder',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: Colors.orange[900],
+                          height: 1.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Additional Help Text
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -178,7 +269,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Check your email inbox and spam folder for the reset link.',
+                          'The reset link will expire in 1 hour. Click the link in the email to reset your password.',
                           style: GoogleFonts.inter(
                             fontSize: 13,
                             color: Colors.blue[900],
