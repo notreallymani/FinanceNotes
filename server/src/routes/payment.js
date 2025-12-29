@@ -55,7 +55,9 @@ router.post('/send', auth, upload.array('documents'), async (req, res) => {
       customerName: customerName.trim(),
       documents,
     });
-    console.log(`[POST /api/payment/send] Payment created with ID: ${tx.id}, senderAadhar: ${tx.senderAadhar}`);
+    console.log(`[POST /api/payment/send] Payment created with ID: ${tx.id}`);
+    console.log(`[POST /api/payment/send] senderAadhar: ${tx.senderAadhar || 'EMPTY'}, receiverAadhar: ${tx.receiverAadhar || 'EMPTY'}`);
+    console.log(`[POST /api/payment/send] customerName: ${tx.customerName || 'EMPTY'}`);
     return res.json({ transaction: tx.toJSON() });
   } catch (e) {
     return res.status(500).json({ message: 'Server error' });
@@ -331,6 +333,7 @@ router.get('/received', auth, async (req, res) => {
     }
     const query = { receiverAadhar: userAadhar };
     console.log(`[GET /api/payment/received] Query:`, JSON.stringify(query));
+    console.log(`[GET /api/payment/received] Searching for transactions where receiverAadhar == ${userAadhar}`);
 
     const [total, list] = await Promise.all([
       Transaction.countDocuments(query),
@@ -344,6 +347,22 @@ router.get('/received', auth, async (req, res) => {
     const hasMore = skip + transactions.length < total;
 
     console.log(`[GET /api/payment/received] Found ${transactions.length} transactions (total: ${total})`);
+    
+    // Debug: Log all transactions in database with this receiverAadhar (for debugging)
+    if (total === 0) {
+      console.log(`[GET /api/payment/received] ⚠️  No transactions found. Checking all transactions with receiverAadhar...`);
+      const allWithReceiver = await Transaction.find({ receiverAadhar: userAadhar }).lean();
+      console.log(`[GET /api/payment/received] Debug: Found ${allWithReceiver.length} transactions with receiverAadhar ${userAadhar}`);
+      
+      // Also check if there are any transactions at all
+      const allTransactions = await Transaction.find({}).limit(5).lean();
+      console.log(`[GET /api/payment/received] Debug: Sample transactions in DB:`, allTransactions.map(t => ({
+        id: t._id,
+        senderAadhar: t.senderAadhar,
+        receiverAadhar: t.receiverAadhar,
+        customerName: t.customerName
+      })));
+    }
 
     return res.json({
       transactions,
