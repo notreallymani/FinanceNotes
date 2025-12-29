@@ -70,16 +70,9 @@ async function sendPasswordResetEmail(email) {
   try {
     const admin = getFirebaseAdmin();
     
-    // Check if user exists in Firebase Auth first
-    try {
-      await admin.auth().getUserByEmail(email);
-    } catch (error) {
-      if (error.code === 'auth/user-not-found') {
-        // User doesn't exist in Firebase Auth
-        throw new Error('User not found in Firebase Auth');
-      }
-      throw error;
-    }
+    // Note: Firebase Identity Toolkit API will create the user if they don't exist
+    // when sending a PASSWORD_RESET request, so we don't need to check/create user here
+    // Just proceed with sending the password reset email
     
     // Get service account and project details
     const serviceAccount = require(path.resolve(__dirname, '../../', config.gcpStorageKeyFile));

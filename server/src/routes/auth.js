@@ -278,6 +278,8 @@ router.post('/email-login', async (req, res) => {
           // If not available, we'll use an alternative approach
           const firebaseWebApiKey = config.firebaseWebApiKey || process.env.FIREBASE_WEB_API_KEY;
           
+          console.log(`${logPrefix} Firebase Web API key configured: ${firebaseWebApiKey ? 'Yes' : 'No'}`);
+          
           if (firebaseWebApiKey) {
             try {
               // Use Firebase Identity Toolkit API to verify password
@@ -314,12 +316,17 @@ router.post('/email-login', async (req, res) => {
               console.log(`${logPrefix} Firebase Auth password verification failed:`, firebaseAuthError.response?.data?.error?.message || firebaseAuthError.message);
             }
           } else {
-            console.log(`${logPrefix} Firebase Web API key not configured. Cannot verify Firebase Auth password.`);
-            console.log(`${logPrefix} To enable password reset sync, add FIREBASE_WEB_API_KEY to your config.`);
+            console.log(`${logPrefix} ⚠️  Firebase Web API key not configured. Cannot verify Firebase Auth password.`);
+            console.log(`${logPrefix} To enable password reset sync, add FIREBASE_WEB_API_KEY to your .env.production file.`);
+            console.log(`${logPrefix} Get your Web API key from: Firebase Console → Project Settings → General → Web API Key`);
           }
         } catch (firebaseError) {
-          // User doesn't exist in Firebase Auth
-          console.log(`${logPrefix} User not found in Firebase Auth`);
+          // User doesn't exist in Firebase Auth or other error
+          if (firebaseError.code === 'auth/user-not-found') {
+            console.log(`${logPrefix} User not found in Firebase Auth. They may need to reset password first.`);
+          } else {
+            console.log(`${logPrefix} Firebase Auth check error:`, firebaseError.message);
+          }
         }
       } catch (error) {
         // Firebase check failed, continue with original error
@@ -488,7 +495,9 @@ router.post('/forgot-password', async (req, res) => {
       
       console.log(`${logPrefix} Attempting to send password reset email to: ${normalizedEmail}`);
       
-      // Check if user exists in Firebase Auth, if not, create them
+      // Send password reset email
+      // Note: Firebase Identity Toolkit API will automatically create the user if they don't exist
+      // when sending a PASSWORD_RESET request, so we don't need to create them manually
       try {
         const result = await firebaseAdmin.sendPasswordResetEmail(normalizedEmail);
         console.log(`${logPrefix} ✅ Password reset email sent successfully to: ${normalizedEmail}`);
@@ -503,7 +512,7 @@ router.post('/forgot-password', async (req, res) => {
         console.error(`${logPrefix} Error message:`, firebaseError.message);
         console.error(`${logPrefix} Error code:`, firebaseError.code);
         
-        // If user doesn't exist in Firebase Auth
+        // If user doesn't exist in Firebase Auth (after trying to create)
         if (firebaseError.message && firebaseError.message.includes('not found in Firebase Auth')) {
           console.log(`${logPrefix} User not in Firebase Auth: ${normalizedEmail}`);
           // Don't reveal if user exists (security best practice)
