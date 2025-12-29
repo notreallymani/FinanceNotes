@@ -33,7 +33,8 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> with Single
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
-      if (_tabController.indexIsChanging) {
+      // Update current tab index whenever it changes
+      if (_currentTabIndex != _tabController.index) {
         setState(() {
           _currentTabIndex = _tabController.index;
         });
@@ -118,12 +119,28 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> with Single
       body: SafeArea(
         child: Consumer2<AuthProvider, PaymentProvider>(
           builder: (context, authProvider, paymentProvider, _) {
+            // Ensure tab index is synced with controller
+            final tabIndex = _tabController.index;
+            if (_currentTabIndex != tabIndex) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                setState(() {
+                  _currentTabIndex = tabIndex;
+                });
+              });
+            }
+            
             // Show transactions based on selected tab
             final base = widget.transactions ?? 
                 (_currentTabIndex == 0 
                     ? paymentProvider.history  // Sent transactions
                     : paymentProvider.receivedHistory); // Received transactions
             final allItems = List<TransactionModel>.from(base);
+            
+            // Debug: Log received history count
+            if (_currentTabIndex == 1) {
+              print('[PaymentHistory] Received tab - receivedHistory count: ${paymentProvider.receivedHistory.length}');
+              print('[PaymentHistory] Received tab - allItems count: ${allItems.length}');
+            }
             
             // Apply filters
             final filteredItems = TransactionFilterUtil.applyFilters(
