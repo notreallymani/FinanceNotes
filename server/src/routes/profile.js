@@ -65,4 +65,68 @@ router.put('/', auth, async (req, res) => {
   }
 });
 
+/**
+ * Check if Aadhaar number is available (not used by another user)
+ */
+router.post('/check-aadhar', auth, async (req, res) => {
+  try {
+    const { aadhar } = req.body;
+
+    if (!aadhar || typeof aadhar !== 'string' || aadhar.trim() === '') {
+      return res.status(400).json({ message: 'Aadhaar number is required' });
+    }
+
+    const trimmedAadhar = aadhar.trim();
+
+    // Check if Aadhaar is already used by another user
+    const existingUser = await User.findOne({
+      _id: { $ne: req.user.id },
+      aadhar: trimmedAadhar,
+    }).lean();
+
+    if (existingUser) {
+      return res.json({
+        available: false,
+        message: 'This Aadhaar number is already used by another profile',
+      });
+    }
+
+    return res.json({
+      available: true,
+      message: 'Aadhaar number is available',
+    });
+  } catch (e) {
+    console.error('[Profile] Error checking Aadhaar:', e);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/**
+ * Update FCM token for push notifications
+ */
+router.post('/fcm-token', auth, async (req, res) => {
+  try {
+    const { fcmToken } = req.body;
+
+    if (!fcmToken || typeof fcmToken !== 'string' || fcmToken.trim() === '') {
+      return res.status(400).json({ message: 'FCM token is required' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: { fcmToken: fcmToken.trim() } },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    return res.json({ success: true, message: 'FCM token updated' });
+  } catch (e) {
+    console.error('[Profile] Error updating FCM token:', e);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router;

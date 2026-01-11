@@ -93,13 +93,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
     final counterpartName = isOwner 
         ? (convo.customerName ?? convo.receiverName ?? '')
         : (convo.senderName ?? '');
-    final displayName = counterpartName.isNotEmpty 
-        ? counterpartName 
-        : _maskAadhar(counterpartAadhar ?? '-');
     final maskedAadhar = _maskAadhar(counterpartAadhar ?? '-');
     final amount = convo.amount != null ? '₹${convo.amount!.toStringAsFixed(0)}' : '';
     final status = convo.status?.toUpperCase() ?? '';
-    final isLastFromMe = convo.lastMessage?.senderAadhar == currentUserAadhar;
     final unread = convo.unreadCount;
 
     final Color statusColor;

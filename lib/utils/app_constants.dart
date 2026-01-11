@@ -7,6 +7,7 @@ class AppConstants {
   static const String emailLoginEndpoint = '/api/auth/email-login';
   static const String forgotPasswordEndpoint = '/api/auth/forgot-password';
   static const String profileEndpoint = '/api/profile';
+  static const String checkAadharEndpoint = '/api/profile/check-aadhar';
   static const String sendPaymentEndpoint = '/api/payment/send';
   static const String closePaymentEndpoint = '/api/payment/close';
   static const String paymentHistoryEndpoint = '/api/payment/history';
@@ -16,6 +17,7 @@ class AppConstants {
   static const String sendChatMessageEndpoint = '/api/chat/send';
   static const String chatListEndpoint = '/api/chat/list';
   static const String unreadCountEndpoint = '/api/chat/unread-count';
+  static const String updateFcmTokenEndpoint = '/api/profile/fcm-token';
   static const String customerCloseSendOtpEndpoint = '/api/payment/customer-close/send-otp';
   static const String customerCloseVerifyOtpEndpoint = '/api/payment/customer-close/verify';
   static const String documentDownloadUrlEndpoint = '/api/payment/document-download-url';

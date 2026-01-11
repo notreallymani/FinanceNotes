@@ -8,6 +8,7 @@ import '../api/profile_api.dart';
 import '../models/user_model.dart';
 import '../utils/app_constants.dart';
 import '../config/google_auth_config.dart';
+import '../services/fcm_service.dart';
 
 class AuthProvider with ChangeNotifier {
   final AuthApi _authApi = AuthApi();
@@ -64,6 +65,8 @@ class AuthProvider with ChangeNotifier {
           final user = UserModel.fromJson(response['user']);
           await saveUserData(user);
           _user = user;
+          // Register FCM token after successful login
+          _registerFcmToken();
         }
         _isLoading = false;
         notifyListeners();
@@ -112,6 +115,10 @@ class AuthProvider with ChangeNotifier {
       await saveToken(token);
       final userModel = UserModel.fromJson(user);
       await saveUserData(userModel);
+      
+      // Register FCM token after successful registration/login
+      _registerFcmToken();
+      
       _isLoading = false;
       notifyListeners();
       return true;
@@ -149,6 +156,10 @@ class AuthProvider with ChangeNotifier {
       await saveToken(token);
       final userModel = UserModel.fromJson(user);
       await saveUserData(userModel);
+      
+      // Register FCM token after successful login
+      _registerFcmToken();
+      
       _isLoading = false;
       notifyListeners();
       return true;
@@ -157,6 +168,22 @@ class AuthProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
       return false;
+    }
+  }
+
+  /// Register FCM token after successful login
+  void _registerFcmToken() {
+    try {
+      final fcmService = FcmService();
+      if (fcmService.isInitialized && fcmService.currentToken != null) {
+        fcmService.registerToken(fcmService.currentToken!).catchError((e) {
+          // Don't fail login if FCM registration fails
+          debugPrint('[Auth] FCM token registration failed: $e');
+        });
+      }
+    } catch (e) {
+      // Don't fail login if FCM registration fails
+      debugPrint('[Auth] FCM token registration error: $e');
     }
   }
 
@@ -220,6 +247,15 @@ class AuthProvider with ChangeNotifier {
       await GoogleSignIn().signOut();
       await GoogleSignIn().disconnect();
     } catch (_) {}
+    
+    // Delete FCM token on logout
+    try {
+      await FcmService().deleteToken();
+    } catch (e) {
+      // Continue with logout even if FCM token deletion fails
+      debugPrint('[Auth] FCM token deletion failed: $e');
+    }
+    
     // Clear all stored data
     await _storage.delete(key: AppConstants.tokenKey);
     await _storage.delete(key: AppConstants.userKey);
@@ -385,6 +421,9 @@ class AuthProvider with ChangeNotifier {
       await saveToken(token);
       final userModel = UserModel.fromJson(user);
       await saveUserData(userModel);
+      
+      // Register FCM token after successful login
+      _registerFcmToken();
       
       _error = null;
       debugPrint('[Google Auth] SUCCESS: User authenticated - ${userModel.email} (ID: ${userModel.id})');

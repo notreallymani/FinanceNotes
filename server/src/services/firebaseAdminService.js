@@ -197,11 +197,88 @@ async function createFirebaseUser(email, password) {
   }
 }
 
+/**
+ * Send push notification using FCM
+ * @param {string} fcmToken - The FCM token of the recipient
+ * @param {string} title - Notification title
+ * @param {string} body - Notification body
+ * @param {Object} data - Optional data payload
+ * @returns {Promise<Object>} - Result of sending notification
+ */
+async function sendPushNotification(fcmToken, title, body, data = {}) {
+  try {
+    if (!fcmToken || typeof fcmToken !== 'string' || fcmToken.trim() === '') {
+      throw new Error('FCM token is required');
+    }
+
+    const admin = getFirebaseAdmin();
+
+    const message = {
+      token: fcmToken,
+      notification: {
+        title: title,
+        body: body,
+      },
+      data: {
+        ...data,
+        // Convert all data values to strings (FCM requirement)
+        ...Object.keys(data).reduce((acc, key) => {
+          acc[key] = String(data[key]);
+          return acc;
+        }, {}),
+      },
+      android: {
+        priority: 'high',
+        notification: {
+          channelId: 'messages',
+          sound: 'default',
+          priority: 'high',
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: 1,
+          },
+        },
+      },
+    };
+
+    const response = await admin.messaging().send(message);
+    console.log(`[Firebase Admin] ✅ Push notification sent successfully: ${response}`);
+    return {
+      success: true,
+      messageId: response,
+    };
+  } catch (error) {
+    console.error('[Firebase Admin] ❌ Push notification error:', error.message);
+    
+    // Handle specific FCM errors
+    if (error.code === 'messaging/invalid-registration-token' || 
+        error.code === 'messaging/registration-token-not-registered') {
+      console.log('[Firebase Admin] Invalid or unregistered FCM token, it may need to be removed from database');
+      return {
+        success: false,
+        error: 'INVALID_TOKEN',
+        message: 'FCM token is invalid or unregistered',
+      };
+    }
+
+    return {
+      success: false,
+      error: error.code || 'UNKNOWN_ERROR',
+      message: error.message,
+    };
+  }
+}
+
 module.exports = {
   initializeFirebaseAdmin,
   getFirebaseAdmin,
   sendPasswordResetEmail,
   createFirebaseUser,
+  sendPushNotification,
 };
 
 

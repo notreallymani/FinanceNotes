@@ -4,6 +4,7 @@ const Otp = require('../models/Otp');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const config = require('../config');
+const auth = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -144,11 +145,12 @@ router.post('/generate-otp', async (req, res) => {
   }
 });
 
-router.post('/verify-otp', async (req, res) => {
+router.post('/verify-otp', auth, async (req, res) => {
   const logPrefix = '[POST /api/aadhar/verify-otp]';
   try {
     const startTime = Date.now();
     const { aadhar, otp } = req.body;
+    const userId = req.user?.id; // User ID if authenticated
     
     console.log(`${logPrefix} Request received - Aadhaar: ${aadhar ? aadhar.substring(0, 4) + '****' : 'missing'}, OTP: ${otp ? otp.substring(0, 2) + '****' : 'missing'}`);
     
@@ -159,6 +161,31 @@ router.post('/verify-otp', async (req, res) => {
 
     // Development bypass: any Aadhaar + OTP 123456 succeeds
     if (config.env === 'development' && otp === '123456') {
+      // Store details in user record if authenticated
+      if (userId) {
+        try {
+          const devResponse = { 
+            message: 'Development bypass', 
+            valid_aadhaar: true,
+            aadhar: aadhar 
+          };
+          await User.findByIdAndUpdate(
+            userId,
+            {
+              $set: {
+                aadhar: aadhar,
+                aadharVerified: true,
+                aadharDetails: devResponse,
+              },
+            },
+            { new: true }
+          );
+          console.log(`${logPrefix} ✅ Dev bypass - Aadhaar details stored in user profile`);
+        } catch (dbError) {
+          console.error(`${logPrefix} ❌ Error storing Aadhaar details (dev bypass):`, dbError.message);
+        }
+      }
+      
       const elapsed = Date.now() - startTime;
       console.log(`${logPrefix} ✅ DEV bypass success in ${elapsed}ms`);
       return res.json({ success: true, verified: true, aadhar, message: 'Verified (dev bypass)' });
@@ -197,6 +224,33 @@ router.post('/verify-otp', async (req, res) => {
       // Sandbox test data: Aadhaar 123456789111 with OTP 111111
       if (config.env === 'development' && aadhar === '123456789111' && otp === '111111') {
         console.log(`${logPrefix} ✅ Using sandbox test data - Auto-verifying`);
+        
+        // Store sandbox test data in user record if authenticated
+        if (userId) {
+          try {
+            const sandboxResponse = {
+              message: 'Sandbox test data',
+              valid_aadhaar: true,
+              aadhar: aadhar,
+              sandbox: true,
+            };
+            await User.findByIdAndUpdate(
+              userId,
+              {
+                $set: {
+                  aadhar: aadhar,
+                  aadharVerified: true,
+                  aadharDetails: sandboxResponse,
+                },
+              },
+              { new: true }
+            );
+            console.log(`${logPrefix} ✅ Sandbox test - Aadhaar details stored in user profile`);
+          } catch (dbError) {
+            console.error(`${logPrefix} ❌ Error storing Aadhaar details (sandbox):`, dbError.message);
+          }
+        }
+        
         // Skip QuickeKYC API call for sandbox test data
       } else {
         try {
@@ -224,6 +278,30 @@ router.post('/verify-otp', async (req, res) => {
           if (isSuccess) {
             console.log(`${logPrefix} ✅ QuickeKYC verification successful`);
             console.log(`${logPrefix} Response data:`, JSON.stringify(r.data.data || r.data));
+            
+            // Store full JSON response in user record if authenticated
+            if (userId) {
+              try {
+                // Store the full response JSON from QuickeKYC (includes status_code, status, message, data, etc.)
+                const fullResponse = r.data; // Store complete response including all metadata
+                await User.findByIdAndUpdate(
+                  userId,
+                  {
+                    $set: {
+                      aadhar: aadhar,
+                      aadharVerified: true,
+                      aadharDetails: fullResponse, // Store full JSON details
+                    },
+                  },
+                  { new: true }
+                );
+                console.log(`${logPrefix} ✅ Aadhaar details stored in user profile`);
+              } catch (dbError) {
+                console.error(`${logPrefix} ❌ Error storing Aadhaar details:`, dbError.message);
+                // Continue even if DB update fails
+              }
+            }
+            
             // OTP verified by QuickeKYC, continue to verification success
           } else {
             // Handle specific QuickeKYC error messages
@@ -267,18 +345,41 @@ router.post('/verify-otp', async (req, res) => {
         return res.status(400).json({ message: 'Invalid OTP code' });
       }
       console.log(`${logPrefix} ✅ Local OTP verified`);
+      
+      // Store local OTP verification details if authenticated
+      if (userId) {
+        try {
+          const localResponse = {
+            message: 'Local OTP verification',
+            valid_aadhaar: true,
+            aadhar: aadhar,
+            provider: 'local',
+          };
+          await User.findByIdAndUpdate(
+            userId,
+            {
+              $set: {
+                aadhar: aadhar,
+                aadharVerified: true,
+                aadharDetails: localResponse,
+              },
+            },
+            { new: true }
+          );
+          console.log(`${logPrefix} ✅ Local OTP - Aadhaar details stored in user profile`);
+        } catch (dbError) {
+          console.error(`${logPrefix} ❌ Error storing Aadhaar details (local):`, dbError.message);
+        }
+      }
     } else {
       console.log(`${logPrefix} ❌ Unknown provider: ${record.provider}`);
       return res.status(400).json({ message: 'Invalid OTP provider' });
     }
 
-    // Aadhaar verification is for payment transactions, not user profile creation
-    // Same Aadhaar can be used by different users for different payment transactions
-    // Just return verification success - don't create/update user profile
     const elapsed = Date.now() - startTime;
     console.log(`${logPrefix} ✅ Aadhaar verified in ${elapsed}ms`);
     
-    // Return verification result (not user profile)
+    // Return verification result
     return res.json({ 
       success: true,
       verified: true,

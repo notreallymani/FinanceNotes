@@ -19,9 +19,21 @@ import 'screens/search/search_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'screens/help/help_support_screen.dart';
 import 'services/notification_service.dart';
+import 'services/fcm_service.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
+// Handle background messages (must be top-level function)
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Handle background message
+  print('[FCM Background] Received message: ${message.messageId}');
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Set up background message handler BEFORE initializing Firebase
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   
   // Optimize: Initialize Firebase and notification service in parallel
   await Future.wait([
@@ -32,6 +44,8 @@ Future<void> main() async {
     ]),
     // Initialize notification service for download notifications
     NotificationService().initialize(),
+    // Initialize FCM service for push notifications
+    FcmService().initialize(),
   ]);
   
   runApp(const MyApp());

@@ -136,9 +136,11 @@ class PaymentProvider with ChangeNotifier {
       // Refresh in background
       fetchAll(useCache: false).catchError((_) {
         // Silently fail - background refresh
+        return false;
       });
       fetchReceived(useCache: false).catchError((_) {
         // Silently fail - background refresh
+        return false;
       });
       _isLoading = false;
       notifyListeners();

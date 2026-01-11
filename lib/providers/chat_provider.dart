@@ -85,6 +85,7 @@ class ChatProvider with ChangeNotifier {
       // Refresh conversations list to update last message (don't wait for it)
       loadConversations(useCache: false).catchError((_) {
         // Silently fail - user can manually refresh
+        return false;
       });
       
       return true;

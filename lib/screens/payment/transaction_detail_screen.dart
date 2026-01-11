@@ -408,19 +408,6 @@ class TransactionDetailScreen extends StatelessWidget {
     }
   }
 
-  IconData _getStatusIcon(String status) {
-    switch (status.toLowerCase()) {
-      case 'closed':
-        return Icons.check_circle;
-      case 'pending':
-        return Icons.pending;
-      case 'cancelled':
-        return Icons.cancel;
-      default:
-        return Icons.info;
-    }
-  }
-
   Future<void> _makePhoneCall(String phoneNumber) async {
     final uri = Uri.parse('tel:$phoneNumber');
     if (await canLaunchUrl(uri)) {

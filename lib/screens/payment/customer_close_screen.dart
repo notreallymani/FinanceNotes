@@ -134,10 +134,7 @@ class _CustomerCloseScreenState extends State<CustomerCloseScreen> {
     });
 
     try {
-      // Step 1: Verify Aadhaar OTP first
-      await _aadharApi.verifyAadharOtp(ownerAadhar, otp);
-      
-      // Step 2: If OTP verified, close the transaction via backend
+      // Verify OTP and close transaction (backend handles OTP verification)
       final paymentProvider = Provider.of<PaymentProvider>(context, listen: false);
       final success = await paymentProvider.verifyCustomerCloseOtp(
         transactionId: widget.transaction.id,

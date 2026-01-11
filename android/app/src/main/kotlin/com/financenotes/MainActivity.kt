@@ -1,5 +1,6 @@
-package com.example.fn_flutter_app
+package com.financenotes
 
 import io.flutter.embedding.android.FlutterActivity
 
 class MainActivity : FlutterActivity()
+

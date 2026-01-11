@@ -3,6 +3,7 @@ const Chat = require('../models/Chat');
 const Transaction = require('../models/Transaction');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const firebaseAdminService = require('../services/firebaseAdminService');
 
 const router = express.Router();
 
@@ -260,6 +261,44 @@ router.post('/send', auth, async (req, res) => {
       message: message.trim(),
       status: 'sent',
     });
+
+    // Send push notification to receiver (don't block response if it fails)
+    try {
+      // Find receiver user by Aadhaar to get their FCM token
+      const receiverUser = await User.findOne({ aadhar: receiverAadhar });
+      
+      if (receiverUser && receiverUser.fcmToken && receiverUser.fcmToken.trim() !== '') {
+        // Get sender name for notification
+        const senderName = user.name || 'Someone';
+        const notificationTitle = 'New Message';
+        const notificationBody = `${senderName}: ${message.trim().substring(0, 100)}${message.trim().length > 100 ? '...' : ''}`;
+        
+        // Initialize Firebase Admin if not already initialized
+        firebaseAdminService.initializeFirebaseAdmin();
+        
+        // Send push notification
+        const notificationResult = await firebaseAdminService.sendPushNotification(
+          receiverUser.fcmToken.trim(),
+          notificationTitle,
+          notificationBody,
+          {
+            type: 'chat_message',
+            transactionId: transactionId,
+            senderAadhar: userAadhar.trim(),
+          }
+        );
+
+        if (!notificationResult.success && notificationResult.error === 'INVALID_TOKEN') {
+          // Token is invalid, clear it from database
+          console.log('[Chat Send] Clearing invalid FCM token for user:', receiverUser.id);
+          receiverUser.fcmToken = '';
+          await receiverUser.save();
+        }
+      }
+    } catch (notificationError) {
+      // Log error but don't fail the message send request
+      console.error('[Chat Send] Error sending push notification:', notificationError.message);
+    }
 
     return res.json({ message: chatMessage.toJSON() });
   } catch (e) {

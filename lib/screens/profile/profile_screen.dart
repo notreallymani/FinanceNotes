@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,6 +9,7 @@ import '../../widgets/input_field.dart';
 import '../../widgets/loader.dart';
 import '../../utils/validators.dart';
 import '../../api/aadhar_api.dart';
+import '../../api/profile_api.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -24,11 +26,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController _aadharController;
   late TextEditingController _otpController;
   final AadharApi _aadharApi = AadharApi();
+  final ProfileApi _profileApi = ProfileApi();
+  Timer? _aadharCheckTimer;
   bool _isSendingOtp = false;
   bool _isVerifyingOtp = false;
   bool _isInitialized = false;
   bool _otpSent = false;
   String? _pendingAadhar;
+  bool? _isAadharAvailable; // null = not checked, true = available, false = duplicate
+  bool _isCheckingAadhar = false;
+  String? _aadharCheckMessage;
 
   @override
   void initState() {
@@ -72,12 +79,80 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   void dispose() {
+    _aadharCheckTimer?.cancel();
     _nameController.dispose();
     _emailController.dispose();
     _mobileController.dispose();
     _aadharController.dispose();
     _otpController.dispose();
     super.dispose();
+  }
+
+  /// Check if Aadhaar is available (debounced)
+  void _checkAadharAvailability(String aadhar) {
+    // Cancel previous timer
+    _aadharCheckTimer?.cancel();
+
+    // Reset state if empty
+    if (aadhar.trim().isEmpty || aadhar.trim().length != 12) {
+      setState(() {
+        _isAadharAvailable = null;
+        _aadharCheckMessage = null;
+        _isCheckingAadhar = false;
+      });
+      return;
+    }
+
+    // Validate format first
+    final aadharError = Validators.validateAadhar(aadhar);
+    if (aadharError != null) {
+      setState(() {
+        _isAadharAvailable = null;
+        _aadharCheckMessage = aadharError;
+        _isCheckingAadhar = false;
+      });
+      return;
+    }
+
+    // Check if it's the current user's Aadhaar
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final currentUserAadhar = authProvider.user?.aadhar ?? '';
+    if (aadhar.trim() == currentUserAadhar) {
+      setState(() {
+        _isAadharAvailable = true;
+        _aadharCheckMessage = 'This is your current Aadhaar';
+        _isCheckingAadhar = false;
+      });
+      return;
+    }
+
+    // Show checking state
+    setState(() {
+      _isCheckingAadhar = true;
+      _isAadharAvailable = null;
+      _aadharCheckMessage = 'Checking availability...';
+    });
+
+    // Debounce: wait 800ms after user stops typing
+    _aadharCheckTimer = Timer(const Duration(milliseconds: 800), () async {
+      try {
+        final result = await _profileApi.checkAadhar(aadhar);
+        if (!mounted) return;
+        
+        setState(() {
+          _isCheckingAadhar = false;
+          _isAadharAvailable = result['available'] as bool? ?? false;
+          _aadharCheckMessage = result['message'] as String?;
+        });
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _isCheckingAadhar = false;
+          _isAadharAvailable = null;
+          _aadharCheckMessage = 'Unable to verify. Please try again.';
+        });
+      }
+    });
   }
 
   Future<void> _handleUpdateProfile() async {
@@ -415,24 +490,87 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   maxLength: 10,
                 ),
                 const SizedBox(height: 20),
-                InputField(
-                  label: 'Aadhaar Number',
-                  hint: 'Enter your Aadhaar number',
-                  controller: _aadharController,
-                  validator: Validators.validateAadhar,
-                  keyboardType: TextInputType.number,
-                  maxLength: 12,
-                  enabled: !isAadharVerified && !_otpSent,
-                  onChanged: (value) {
-                    // Reset OTP state if user changes Aadhaar number
-                    if (_otpSent && value.trim() != _pendingAadhar) {
-                      setState(() {
-                        _otpSent = false;
-                        _pendingAadhar = null;
-                        _otpController.clear();
-                      });
-                    }
-                  },
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    InputField(
+                      label: 'Aadhaar Number',
+                      hint: 'Enter your Aadhaar number',
+                      controller: _aadharController,
+                      validator: Validators.validateAadhar,
+                      keyboardType: TextInputType.number,
+                      maxLength: 12,
+                      enabled: !isAadharVerified && !_otpSent,
+                      suffixIcon: _buildAadharStatusIcon(),
+                      onChanged: (value) {
+                        // Reset OTP state if user changes Aadhaar number
+                        if (_otpSent && value.trim() != _pendingAadhar) {
+                          setState(() {
+                            _otpSent = false;
+                            _pendingAadhar = null;
+                            _otpController.clear();
+                          });
+                        }
+                        // Check availability with debounce
+                        if (!isAadharVerified && value.trim().length == 12) {
+                          _checkAadharAvailability(value.trim());
+                        } else if (value.trim().length != 12) {
+                          setState(() {
+                            _isAadharAvailable = null;
+                            _aadharCheckMessage = null;
+                            _isCheckingAadhar = false;
+                          });
+                        }
+                      },
+                    ),
+                    // Show validation status message
+                    if (_aadharCheckMessage != null && !isAadharVerified && !_otpSent)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0, left: 4.0),
+                        child: Row(
+                          children: [
+                            if (_isCheckingAadhar)
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.blue[600]!,
+                                  ),
+                                ),
+                              )
+                            else if (_isAadharAvailable == true)
+                              Icon(
+                                Icons.check_circle,
+                                size: 16,
+                                color: Colors.green[600],
+                              )
+                            else if (_isAadharAvailable == false)
+                              Icon(
+                                Icons.error,
+                                size: 16,
+                                color: Colors.orange[700],
+                              ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _aadharCheckMessage!,
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: _isAadharAvailable == false
+                                      ? Colors.orange[700]
+                                      : _isAadharAvailable == true
+                                          ? Colors.green[600]
+                                          : Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
                 if (!isAadharVerified) ...[
                   const SizedBox(height: 12),
@@ -532,6 +670,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final v = value.replaceAll(' ', '');
     if (v.length != 12) return value;
     return '${v.substring(0, 4)} **** ${v.substring(8)}';
+  }
+
+  /// Build status icon for Aadhaar field
+  Widget? _buildAadharStatusIcon() {
+    if (_isCheckingAadhar) {
+      return Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.blue[600]!),
+          ),
+        ),
+      );
+    } else if (_isAadharAvailable == true) {
+      return Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Icon(
+          Icons.check_circle,
+          color: Colors.green[600],
+          size: 24,
+        ),
+      );
+    } else if (_isAadharAvailable == false) {
+      return Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Icon(
+          Icons.error,
+          color: Colors.orange[700],
+          size: 24,
+        ),
+      );
+    }
+    return null;
   }
 }
 

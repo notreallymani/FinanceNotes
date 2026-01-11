@@ -103,9 +103,6 @@ class _ChatScreenState extends State<ChatScreen> {
     final otherPartyName = isOwner 
         ? (widget.transaction.customerName ?? '')
         : ''; // For owner chat, we'll need to get owner name from auth or another source
-    final displayName = otherPartyName.isNotEmpty 
-        ? otherPartyName 
-        : _maskAadhar(otherPartyAadhar);
     final maskedAadhar = _maskAadhar(otherPartyAadhar);
 
     return Scaffold(

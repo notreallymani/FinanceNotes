@@ -285,5 +285,61 @@ class NotificationService {
     await _notifications.cancel(notificationId);
     clearFilePath(notificationId);
   }
+
+  /// Show chat notification
+  /// This is called when a push notification is received for a chat message
+  Future<void> showChatNotification({
+    required String title,
+    required String body,
+    Map<String, dynamic>? data,
+  }) async {
+    if (!_initialized) await initialize();
+
+    // Create notification ID from transaction ID or use timestamp
+    final notificationId = data != null && data.containsKey('transactionId')
+        ? data['transactionId'].hashCode
+        : DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+    // Create Android notification channel for messages
+    const androidDetails = AndroidNotificationDetails(
+      'messages',
+      'Messages',
+      channelDescription: 'Notifications for chat messages',
+      importance: Importance.high,
+      priority: Priority.high,
+      icon: '@mipmap/ic_launcher',
+      enableVibration: true,
+      playSound: true,
+      showWhen: true,
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    // Use transaction ID as payload for navigation
+    final payload = data != null && data.containsKey('transactionId')
+        ? data['transactionId'] as String
+        : null;
+
+    await _notifications.show(
+      notificationId,
+      title,
+      body,
+      details,
+      payload: payload,
+    );
+
+    if (kDebugMode) {
+      print('Chat notification shown: $title - $body');
+    }
+  }
 }
 

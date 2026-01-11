@@ -12,6 +12,8 @@ const UserSchema = new mongoose.Schema(
     provider: { type: String, default: '' },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
     aadharVerified: { type: Boolean, default: false },
+    fcmToken: { type: String, default: '' }, // Firebase Cloud Messaging token for push notifications
+    aadharDetails: { type: mongoose.Schema.Types.Mixed, default: null }, // Store full Aadhaar verification JSON details
   },
   { timestamps: true }
 );

@@ -41,6 +41,32 @@ class ProfileApi {
     }
   }
 
+  Future<void> updateFcmToken(String fcmToken) async {
+    try {
+      await _dio.post(
+        AppConstants.updateFcmTokenEndpoint,
+        data: {'fcmToken': fcmToken},
+      );
+      Logger.log('✅ FCM token updated successfully');
+    } catch (e) {
+      Logger.log('❌ Error updating FCM token: $e');
+      throw _handleError(e);
+    }
+  }
+
+  /// Check if Aadhaar number is available (not used by another user)
+  Future<Map<String, dynamic>> checkAadhar(String aadhar) async {
+    try {
+      final response = await _dio.post(
+        AppConstants.checkAadharEndpoint,
+        data: {'aadhar': aadhar.trim()},
+      );
+      return response.data;
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
   Exception _handleError(dynamic error) {
     if (error is DioException) {
       if (error.response != null) {
