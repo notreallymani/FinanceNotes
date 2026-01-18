@@ -65,5 +65,71 @@ class TimeUtils {
     final istTime = toIST(dateTime);
     return DateFormat('dd MMM, hh:mm a').format(istTime);
   }
+
+  /// Format time for chat list (WhatsApp-style)
+  /// Returns "Today", "Yesterday", or date like "27 Dec"
+  static String formatChatListTime(DateTime dateTime) {
+    final istTime = toIST(dateTime);
+    final now = getCurrentIST();
+    final today = DateTime(now.year, now.month, now.day);
+    final messageDate = DateTime(istTime.year, istTime.month, istTime.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    if (messageDate == today) {
+      // Today - show time only
+      return DateFormat('hh:mm a').format(istTime);
+    } else if (messageDate == yesterday) {
+      // Yesterday
+      return 'Yesterday';
+    } else {
+      // Older - show date
+      return DateFormat('dd/MM/yy').format(istTime);
+    }
+  }
+
+  /// Format time for chat messages (WhatsApp-style)
+  /// Returns time like "10:30 AM" or "Yesterday 10:30 AM" or "27 Dec 10:30 AM"
+  static String formatChatMessageTime(DateTime dateTime) {
+    final istTime = toIST(dateTime);
+    final now = getCurrentIST();
+    final today = DateTime(now.year, now.month, now.day);
+    final messageDate = DateTime(istTime.year, istTime.month, istTime.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    final timeStr = DateFormat('hh:mm a').format(istTime);
+
+    if (messageDate == today) {
+      return timeStr;
+    } else if (messageDate == yesterday) {
+      return 'Yesterday $timeStr';
+    } else {
+      return DateFormat('dd MMM, $timeStr').format(istTime);
+    }
+  }
+
+  /// Check if two dates are on the same day
+  static bool isSameDay(DateTime date1, DateTime date2) {
+    final d1 = DateTime(date1.year, date1.month, date1.day);
+    final d2 = DateTime(date2.year, date2.month, date2.day);
+    return d1 == d2;
+  }
+
+  /// Get date separator text for chat messages
+  /// Returns "Today", "Yesterday", or formatted date
+  static String getDateSeparator(DateTime dateTime) {
+    final istTime = toIST(dateTime);
+    final now = getCurrentIST();
+    final today = DateTime(now.year, now.month, now.day);
+    final messageDate = DateTime(istTime.year, istTime.month, istTime.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    if (messageDate == today) {
+      return 'Today';
+    } else if (messageDate == yesterday) {
+      return 'Yesterday';
+    } else {
+      return DateFormat('dd MMMM yyyy').format(istTime);
+    }
+  }
 }
 

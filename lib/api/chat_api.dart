@@ -46,12 +46,27 @@ class ChatApi {
     try {
       Logger.log('📤 Fetching chat conversations');
       final response = await _dio.get(AppConstants.chatListEndpoint);
-      Logger.log('✅ Chat conversations received');
+      Logger.log('✅ Chat conversations received: ${response.data}');
+      
       final List<dynamic> conversations = response.data['conversations'] ?? [];
-      return conversations
-          .map((json) => ChatConversation.fromJson(json))
-          .toList();
+      Logger.log('📊 Found ${conversations.length} conversations');
+      
+      final parsedConversations = <ChatConversation>[];
+      for (var json in conversations) {
+        try {
+          final conversation = ChatConversation.fromJson(json as Map<String, dynamic>);
+          parsedConversations.add(conversation);
+        } catch (e) {
+          Logger.log('❌ Error parsing conversation: $e');
+          Logger.log('❌ Conversation data: $json');
+          // Continue with other conversations
+        }
+      }
+      
+      Logger.log('✅ Successfully parsed ${parsedConversations.length} conversations');
+      return parsedConversations;
     } catch (e) {
+      Logger.log('❌ Error fetching conversations: $e');
       throw _handleError(e);
     }
   }

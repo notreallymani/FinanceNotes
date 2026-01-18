@@ -66,11 +66,24 @@ router.get('/list', auth, async (req, res) => {
       return acc;
     }, {});
 
+    // Filter out conversations with missing transactions
+    // Note: We now show ALL conversations regardless of transaction status or date
+    // Users should be able to see their chat history
+    const filteredConversations = conversations.filter((c) => {
+      const tx = txnMap[c._id.toString()];
+      // Only exclude if transaction doesn't exist
+      if (!tx) return false;
+      return true;
+    });
+
     // Collect all unique Aadhaar numbers to fetch user names
     const aadharSet = new Set();
-    txns.forEach((tx) => {
-      if (tx.senderAadhar) aadharSet.add(tx.senderAadhar);
-      if (tx.receiverAadhar) aadharSet.add(tx.receiverAadhar);
+    filteredConversations.forEach((c) => {
+      const tx = txnMap[c._id.toString()];
+      if (tx) {
+        if (tx.senderAadhar) aadharSet.add(tx.senderAadhar);
+        if (tx.receiverAadhar) aadharSet.add(tx.receiverAadhar);
+      }
     });
 
     // Fetch user names by Aadhaar
@@ -82,7 +95,7 @@ router.get('/list', auth, async (req, res) => {
       return acc;
     }, {});
 
-    const result = conversations.map((c) => {
+    const result = filteredConversations.map((c) => {
       const tx = txnMap[c._id.toString()] || {};
       const senderName = tx.senderAadhar ? (userMap[tx.senderAadhar] || '') : '';
       const receiverName = tx.receiverAadhar ? (userMap[tx.receiverAadhar] || '') : '';

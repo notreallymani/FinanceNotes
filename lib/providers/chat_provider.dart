@@ -55,16 +55,26 @@ class ChatProvider with ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    final result = await _useCase.loadConversations(useCache: useCache);
+    try {
+      final result = await _useCase.loadConversations(useCache: useCache);
 
-    _isLoading = false;
-    if (result.success && result.conversations != null) {
-      _conversations = result.conversations!;
-      _error = null;
-      notifyListeners();
-      return true;
-    } else {
-      _error = result.error;
+      _isLoading = false;
+      if (result.success && result.conversations != null) {
+        _conversations = result.conversations!;
+        _error = null;
+        debugPrint('[ChatProvider] Loaded ${_conversations.length} conversations');
+        notifyListeners();
+        return true;
+      } else {
+        _error = result.error ?? 'Failed to load conversations';
+        debugPrint('[ChatProvider] Error loading conversations: ${_error}');
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _isLoading = false;
+      _error = 'Error loading conversations: $e';
+      debugPrint('[ChatProvider] Exception loading conversations: $e');
       notifyListeners();
       return false;
     }

@@ -44,31 +44,77 @@ class ChatConversation {
   }
 
   factory ChatConversation.fromJson(Map<String, dynamic> json) {
-    return ChatConversation(
-      transactionId: json['transactionId'] ?? json['transaction_id'] ?? '',
-      lastMessage: json['lastMessage'] != null
-          ? ChatMessage.fromJson({
+    try {
+      // Parse last message if available
+      ChatMessage? lastMessage;
+      if (json['lastMessage'] != null && json['lastMessage'] is String) {
+        try {
+          // Backend sends lastMessage as string, and separate fields for metadata
+          final lastCreatedAt = json['lastCreatedAt'];
+          if (lastCreatedAt != null) {
+            lastMessage = ChatMessage.fromJson({
               'message': json['lastMessage'],
-              'senderAadhar': json['lastSenderAadhar'],
-              'receiverAadhar': json['lastReceiverAadhar'],
-              'createdAt': json['lastCreatedAt'],
+              'senderAadhar': json['lastSenderAadhar'] ?? '',
+              'receiverAadhar': json['lastReceiverAadhar'] ?? '',
+              'createdAt': lastCreatedAt is String 
+                  ? lastCreatedAt 
+                  : (lastCreatedAt is DateTime 
+                      ? lastCreatedAt.toIso8601String() 
+                      : DateTime.now().toIso8601String()),
               '_id': 'last-${json['transactionId'] ?? ''}',
+              'status': 'delivered',
               'read': true,
-            })
-          : null,
-      unreadCount: json['unreadCount'] ?? 0,
-      amount: (json['transaction']?['amount'] ?? json['amount'])?.toDouble(),
-      status: json['transaction']?['status'] ?? json['status'],
-      senderAadhar: json['transaction']?['senderAadhar'] ?? json['senderAadhar'],
-      receiverAadhar:
-          json['transaction']?['receiverAadhar'] ?? json['receiverAadhar'],
-      senderName: json['transaction']?['senderName'] ?? json['senderName'],
-      receiverName: json['transaction']?['receiverName'] ?? json['receiverName'],
-      customerName: json['transaction']?['customerName'] ?? json['customerName'],
-      transactionCreatedAt: json['transaction']?['createdAt'] != null
-          ? DateTime.parse(json['transaction']['createdAt'])
-          : null,
-    );
+            });
+          }
+        } catch (e) {
+          // If parsing fails, set to null
+          lastMessage = null;
+        }
+      }
+
+      // Parse transaction data (nested or flat)
+      final transaction = json['transaction'] ?? {};
+      final amount = transaction['amount'] ?? json['amount'];
+      final status = transaction['status'] ?? json['status'];
+      final senderAadhar = transaction['senderAadhar'] ?? json['senderAadhar'];
+      final receiverAadhar = transaction['receiverAadhar'] ?? json['receiverAadhar'];
+      final senderName = transaction['senderName'] ?? json['senderName'];
+      final receiverName = transaction['receiverName'] ?? json['receiverName'];
+      final customerName = transaction['customerName'] ?? json['customerName'];
+      
+      DateTime? transactionCreatedAt;
+      try {
+        final createdAt = transaction['createdAt'] ?? json['transactionCreatedAt'];
+        if (createdAt != null) {
+          transactionCreatedAt = createdAt is String 
+              ? DateTime.parse(createdAt) 
+              : (createdAt is DateTime ? createdAt : null);
+        }
+      } catch (e) {
+        transactionCreatedAt = null;
+      }
+
+      return ChatConversation(
+        transactionId: json['transactionId'] ?? json['transaction_id'] ?? '',
+        lastMessage: lastMessage,
+        unreadCount: json['unreadCount'] ?? 0,
+        amount: amount != null ? (amount is num ? amount.toDouble() : double.tryParse(amount.toString())) : null,
+        status: status?.toString(),
+        senderAadhar: senderAadhar?.toString(),
+        receiverAadhar: receiverAadhar?.toString(),
+        senderName: senderName?.toString(),
+        receiverName: receiverName?.toString(),
+        customerName: customerName?.toString(),
+        transactionCreatedAt: transactionCreatedAt,
+      );
+    } catch (e) {
+      // Return a minimal conversation if parsing fails
+      return ChatConversation(
+        transactionId: json['transactionId'] ?? json['transaction_id'] ?? '',
+        lastMessage: null,
+        unreadCount: json['unreadCount'] ?? 0,
+      );
+    }
   }
 }
 

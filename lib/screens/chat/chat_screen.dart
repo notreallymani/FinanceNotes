@@ -191,79 +191,113 @@ class _ChatScreenState extends State<ChatScreen> {
 
                 return ListView.builder(
                   controller: _scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   itemCount: chatProvider.messages.length,
                   itemBuilder: (context, index) {
                     final message = chatProvider.messages[index];
                     final isMe = _isCurrentUser(message.senderAadhar);
-                    return _buildMessageBubble(message, isMe);
+                    
+                    // Check if we need to show a date separator
+                    bool showDateSeparator = false;
+                    if (index == 0) {
+                      showDateSeparator = true;
+                    } else {
+                      final previousMessage = chatProvider.messages[index - 1];
+                      showDateSeparator = !TimeUtils.isSameDay(
+                        message.createdAt,
+                        previousMessage.createdAt,
+                      );
+                    }
+                    
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (showDateSeparator) _buildDateSeparator(message.createdAt),
+                        _buildMessageBubble(message, isMe),
+                      ],
+                    );
                   },
                 );
               },
             ),
           ),
-          // Message input
+          // Message input (WhatsApp-style)
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
               border: Border(
-                top: BorderSide(color: Colors.grey[200]!, width: 1),
+                top: BorderSide(color: Colors.grey[300]!, width: 0.5),
               ),
             ),
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 child: Row(
                   children: [
                     Expanded(
-                      child: TextField(
-                        controller: _messageController,
-                        decoration: InputDecoration(
-                          hintText: 'Type a message...',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            borderSide: BorderSide(color: Colors.grey[300]!),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            borderSide: BorderSide(color: Colors.grey[300]!),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            borderSide: BorderSide(color: Theme.of(context).primaryColor),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                          filled: true,
-                          fillColor: Colors.grey[50],
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(24),
                         ),
-                        maxLines: null,
-                        textCapitalization: TextCapitalization.sentences,
-                        onSubmitted: (_) => _sendMessage(),
+                        child: TextField(
+                          controller: _messageController,
+                          decoration: InputDecoration(
+                            hintText: 'Message',
+                            hintStyle: GoogleFonts.inter(
+                              color: Colors.grey[600],
+                              fontSize: 15,
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 10,
+                            ),
+                          ),
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            color: Colors.grey[900],
+                          ),
+                          maxLines: 5,
+                          minLines: 1,
+                          textCapitalization: TextCapitalization.sentences,
+                          onSubmitted: (_) => _sendMessage(),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Consumer<ChatProvider>(
                       builder: (context, chatProvider, _) {
                         return Container(
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).primaryColor,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF25D366), // WhatsApp green
                             shape: BoxShape.circle,
                           ),
-                          child: IconButton(
-                            icon: chatProvider.isLoading
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Icon(Icons.send, color: Colors.white, size: 20),
-                            onPressed: chatProvider.isLoading ? null : _sendMessage,
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(24),
+                              onTap: chatProvider.isLoading ? null : _sendMessage,
+                              child: Container(
+                                width: 48,
+                                height: 48,
+                                alignment: Alignment.center,
+                                child: chatProvider.isLoading
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.send,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                              ),
+                            ),
                           ),
                         );
                       },
@@ -278,11 +312,37 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  Widget _buildDateSeparator(DateTime date) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 12),
+      alignment: Alignment.center,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          TimeUtils.getDateSeparator(date),
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            color: Colors.grey[700],
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildMessageBubble(ChatMessage message, bool isMe) {
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
+        margin: EdgeInsets.only(
+          bottom: 4,
+          left: isMe ? 60 : 8,
+          right: isMe ? 8 : 60,
+        ),
         constraints: BoxConstraints(
           maxWidth: MediaQuery.of(context).size.width * 0.75,
         ),
@@ -290,41 +350,53 @@ class _ChatScreenState extends State<ChatScreen> {
           crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: isMe ? Theme.of(context).primaryColor : Colors.grey[100],
+                color: isMe 
+                    ? const Color(0xFFDCF8C6) // WhatsApp sent message color
+                    : Colors.white,
                 borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(12),
-                  topRight: const Radius.circular(12),
-                  bottomLeft: Radius.circular(isMe ? 12 : 4),
-                  bottomRight: Radius.circular(isMe ? 4 : 12),
+                  topLeft: const Radius.circular(8),
+                  topRight: const Radius.circular(8),
+                  bottomLeft: Radius.circular(isMe ? 8 : 0),
+                  bottomRight: Radius.circular(isMe ? 0 : 8),
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 2,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
               ),
-              child: Text(
-                message.message,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: isMe ? Colors.white : Colors.grey[900],
-                ),
-              ),
-            ),
-            const SizedBox(height: 3),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    TimeUtils.formatISTTimeOnly(message.createdAt),
+                    message.message,
                     style: GoogleFonts.inter(
-                      fontSize: 10,
-                      color: Colors.grey[600],
+                      fontSize: 14.5,
+                      color: Colors.grey[900],
+                      height: 1.4,
                     ),
                   ),
-                  if (isMe) ...[
-                    const SizedBox(width: 4),
-                    _buildMessageStatusIcon(message.status),
-                  ],
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        TimeUtils.formatISTTimeOnly(message.createdAt).replaceAll(' IST', ''),
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      if (isMe) ...[
+                        const SizedBox(width: 4),
+                        _buildMessageStatusIcon(message.status),
+                      ],
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -341,7 +413,7 @@ class _ChatScreenState extends State<ChatScreen> {
     switch (status) {
       case MessageStatus.read:
         icon = Icons.done_all;
-        color = Colors.blue;
+        color = const Color(0xFF4FC3F7); // WhatsApp blue read tick
         break;
       case MessageStatus.delivered:
         icon = Icons.done_all;
@@ -355,7 +427,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     return Icon(
       icon,
-      size: 14,
+      size: 16,
       color: color,
     );
   }

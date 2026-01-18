@@ -70,7 +70,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  void _populateFields(user) {
+  void _populateFields(dynamic user) {
     _nameController.text = user.name ?? '';
     _emailController.text = user.email ?? '';
     _mobileController.text = user.phone ?? '';

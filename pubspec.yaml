@@ -1,7 +1,7 @@
 name: finance_notes
 description: Finance Notes - A Flutter app for payment and transaction management
 publish_to: 'none'
-version: 1.0.0+6
+version: 1.0.0+10
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

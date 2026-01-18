@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,7 +8,7 @@ import 'providers/auth_provider.dart';
 import 'providers/profile_provider.dart';
 import 'providers/payment_provider.dart';
 import 'providers/search_provider.dart';
-import 'providers/chat_provider.dart';
+import 'chat/presentation/chat_provider_refactored.dart' show ChatProvider;
 import 'screens/auth/login_screen.dart';
 import 'screens/chat/chat_list_screen.dart';
 import 'screens/auth/register_screen.dart';
@@ -26,27 +28,55 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Handle background message
-  print('[FCM Background] Received message: ${message.messageId}');
+  // Note: Can't use debugPrint in top-level function, but this is acceptable for background handler
 }
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Set up background message handler BEFORE initializing Firebase
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-  
-  // Optimize: Initialize Firebase and notification service in parallel
-  await Future.wait([
-    Firebase.initializeApp(),
-    // Pre-cache fonts for faster rendering
-    GoogleFonts.pendingFonts([
-      GoogleFonts.inter(),
-    ]),
-    // Initialize notification service for download notifications
-    NotificationService().initialize(),
-    // Initialize FCM service for push notifications
-    FcmService().initialize(),
-  ]);
+  try {
+    // Set up background message handler BEFORE initializing Firebase
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    
+    // Initialize Firebase first (required for FCM)
+    try {
+      await Firebase.initializeApp().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw TimeoutException('Firebase initialization timed out');
+        },
+      );
+    } catch (e) {
+      // Firebase initialization failed - continue anyway
+      // App will work without Firebase features
+      debugPrint('[Main] Firebase initialization failed: $e');
+    }
+    
+    // Initialize other services in parallel (non-blocking)
+    Future.wait([
+      // Pre-cache fonts for faster rendering
+      GoogleFonts.pendingFonts([
+        GoogleFonts.inter(),
+      ]).catchError((e) {
+        debugPrint('[Main] Font loading failed: $e');
+      }),
+      // Initialize notification service for download notifications
+      NotificationService().initialize().catchError((e) {
+        debugPrint('[Main] Notification service initialization failed: $e');
+      }),
+      // Initialize FCM service for push notifications (after Firebase)
+      FcmService().initialize().catchError((e) {
+        debugPrint('[Main] FCM service initialization failed: $e');
+      }),
+    ]).catchError((e) {
+      debugPrint('[Main] Service initialization error: $e');
+    });
+    
+    // Don't wait for non-critical services - start app immediately
+  } catch (e) {
+    // Critical error - log but continue
+    debugPrint('[Main] Initialization error: $e');
+  }
   
   runApp(const MyApp());
 }
@@ -62,7 +92,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
         ChangeNotifierProvider(create: (_) => PaymentProvider()),
         ChangeNotifierProvider(create: (_) => SearchProvider()),
-        ChangeNotifierProvider(create: (_) => ChatProvider()),
+        ChangeNotifierProvider(create: (_) => ChatProvider()), // Using refactored version
       ],
       child: MaterialApp(
         title: 'Finance Notes',
@@ -139,33 +169,63 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkAuth() async {
-    // Optimize: Run initialization in parallel for faster startup
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final paymentProvider = Provider.of<PaymentProvider>(context, listen: false);
-    
-    // Start initialization immediately (no artificial delay)
-    await authProvider.initialize();
+    try {
+      // Optimize: Run initialization in parallel for faster startup
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final paymentProvider = Provider.of<PaymentProvider>(context, listen: false);
+      
+      // Start initialization with timeout to prevent hanging
+      try {
+        await authProvider.initialize().timeout(
+          const Duration(seconds: 8),
+          onTimeout: () {
+            debugPrint('[Splash] Auth initialization timed out');
+          },
+        );
+      } catch (e) {
+        debugPrint('[Splash] Auth initialization error: $e');
+        // Continue even if initialization fails
+      }
 
-    if (!mounted) return;
-    
-    final token = await authProvider.loadToken();
-    
-    // Check if user is authenticated (has token and user data)
-    if (token != null && token.isNotEmpty && authProvider.isAuthenticated) {
-      final user = authProvider.user;
-      // Load payment history in background (don't wait for it)
-      if (user != null && user.aadhar.isNotEmpty) {
-        paymentProvider.fetchHistory(user.aadhar).catchError((_) {
-          // Silently fail - user can refresh later
-          return false;
-        });
+      if (!mounted) return;
+      
+      String? token;
+      try {
+        token = await authProvider.loadToken().timeout(
+          const Duration(seconds: 3),
+          onTimeout: () {
+            debugPrint('[Splash] Token loading timed out');
+            return null;
+          },
+        );
+      } catch (e) {
+        debugPrint('[Splash] Error loading token: $e');
+        token = null;
       }
-      // Navigate immediately - don't wait for payment history
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/dashboard');
+      
+      // Check if user is authenticated (has token and user data)
+      if (token != null && token.isNotEmpty && authProvider.isAuthenticated) {
+        final user = authProvider.user;
+        // Load payment history in background (don't wait for it)
+        if (user != null && user.aadhar.isNotEmpty) {
+          paymentProvider.fetchHistory(user.aadhar).catchError((_) {
+            // Silently fail - user can refresh later
+            return false;
+          });
+        }
+        // Navigate immediately - don't wait for payment history
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/dashboard');
+        }
+      } else {
+        // No token or not authenticated, navigate to login
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/login');
+        }
       }
-    } else {
-      // No token or not authenticated, navigate to login
+    } catch (e) {
+      debugPrint('[Splash] Error in _checkAuth: $e');
+      // If everything fails, navigate to login as fallback
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/login');
       }

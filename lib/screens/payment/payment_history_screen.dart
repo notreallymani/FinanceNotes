@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../utils/time_utils.dart';
@@ -137,9 +138,9 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> with Single
             final allItems = List<TransactionModel>.from(base);
             
             // Debug: Log received history count
-            if (_currentTabIndex == 1) {
-              print('[PaymentHistory] Received tab - receivedHistory count: ${paymentProvider.receivedHistory.length}');
-              print('[PaymentHistory] Received tab - allItems count: ${allItems.length}');
+            if (kDebugMode && _currentTabIndex == 1) {
+              debugPrint('[PaymentHistory] Received tab - receivedHistory count: ${paymentProvider.receivedHistory.length}');
+              debugPrint('[PaymentHistory] Received tab - allItems count: ${allItems.length}');
             }
             
             // Apply filters

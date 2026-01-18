@@ -6,7 +6,6 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import '../api/profile_api.dart';
-import '../utils/logger.dart';
 import 'notification_service.dart';
 
 class FcmService {

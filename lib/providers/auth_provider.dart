@@ -38,12 +38,33 @@ class AuthProvider with ChangeNotifier {
 
   // Initialize and check persistent login
   Future<void> initialize() async {
-    final token = await loadToken();
-    if (token != null && token.isNotEmpty) {
-      // Token exists, try to load user data
-      await loadUserData();
-      // Optionally verify token with backend
-      // For now, if token exists, we consider user logged in
+    try {
+      final token = await loadToken().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          debugPrint('[Auth] Token loading timed out');
+          return null;
+        },
+      );
+      if (token != null && token.isNotEmpty) {
+        // Token exists, try to load user data
+        try {
+          await loadUserData().timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {
+              debugPrint('[Auth] User data loading timed out');
+            },
+          );
+        } catch (e) {
+          debugPrint('[Auth] Error loading user data: $e');
+          // Continue even if user data loading fails
+        }
+        // Optionally verify token with backend
+        // For now, if token exists, we consider user logged in
+      }
+    } catch (e) {
+      debugPrint('[Auth] Initialization error: $e');
+      // Continue even if initialization fails
     }
   }
 

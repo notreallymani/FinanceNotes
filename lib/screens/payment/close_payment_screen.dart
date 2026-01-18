@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../providers/payment_provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../widgets/primary_button.dart';
 import '../../models/transaction_model.dart';
 import 'close_payment_confirmation_screen.dart';
 import 'customer_close_screen.dart';
@@ -16,7 +15,6 @@ class ClosePaymentScreen extends StatefulWidget {
 }
 
 class _ClosePaymentScreenState extends State<ClosePaymentScreen> {
-  final _filterFormKey = GlobalKey<FormState>();
   final _aadharController = TextEditingController();
   bool _isClosingPayment = false;
   String _selectedTab = 'sent'; // 'sent' or 'received'
@@ -104,8 +102,6 @@ class _ClosePaymentScreenState extends State<ClosePaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final userAadhar = authProvider.user?.aadhar ?? '';
     return Scaffold(
       appBar: AppBar(
         title: Text(
