@@ -22,6 +22,8 @@ import 'screens/profile/profile_screen.dart';
 import 'screens/help/help_support_screen.dart';
 import 'services/notification_service.dart';
 import 'services/fcm_service.dart';
+import 'services/update_service.dart';
+import 'widgets/update_dialog.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 // Handle background messages (must be top-level function)
@@ -67,6 +69,10 @@ Future<void> main() async {
       // Initialize FCM service for push notifications (after Firebase)
       FcmService().initialize().catchError((e) {
         debugPrint('[Main] FCM service initialization failed: $e');
+      }),
+      // Initialize update service for version checking
+      UpdateService().initialize().catchError((e) {
+        debugPrint('[Main] Update service initialization failed: $e');
       }),
     ]).catchError((e) {
       debugPrint('[Main] Service initialization error: $e');
@@ -166,6 +172,45 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
     _checkAuth();
+    _checkForUpdate();
+  }
+
+  /// Check for app updates (non-blocking)
+  Future<void> _checkForUpdate() async {
+    try {
+      // Wait a bit for update service to initialize
+      await Future.delayed(const Duration(seconds: 2));
+      
+      final updateService = UpdateService();
+      final updateInfo = await updateService.checkForUpdate();
+      
+      if (updateInfo != null && updateInfo.isUpdateAvailable && mounted) {
+        // Show update dialog after a short delay
+        await Future.delayed(const Duration(milliseconds: 500));
+        
+        if (mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: !updateInfo.isForceUpdate,
+            builder: (context) => UpdateDialog(
+              updateInfo: updateInfo,
+              onUpdate: () async {
+                Navigator.of(context).pop();
+                // Try in-app update first (Android only)
+                final success = await updateService.performInAppUpdate();
+                if (!success) {
+                  // Fallback to app store
+                  await updateService.openAppStore();
+                }
+              },
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('[Splash] Error checking for update: $e');
+      // Don't block app startup if update check fails
+    }
   }
 
   Future<void> _checkAuth() async {

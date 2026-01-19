@@ -21,6 +21,7 @@ class AppConstants {
   static const String customerCloseSendOtpEndpoint = '/api/payment/customer-close/send-otp';
   static const String customerCloseVerifyOtpEndpoint = '/api/payment/customer-close/verify';
   static const String documentDownloadUrlEndpoint = '/api/payment/document-download-url';
+  static const String appVersionEndpoint = '/api/app/version';
 
   // Storage Keys
   static const String tokenKey = 'auth_token';

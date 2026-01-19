@@ -7,6 +7,7 @@ const profileRoutes = require('./routes/profile');
 const paymentRoutes = require('./routes/payment');
 const aadharRoutes = require('./routes/aadhar');
 const chatRoutes = require('./routes/chat');
+const appRoutes = require('./routes/app');
 
 const app = express();
 
@@ -38,6 +39,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/aadhar', aadharRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/app', appRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, env: config.env });
